@@ -148,14 +148,6 @@ parseBaseProofValue, passing the proofValue from proof. */
     compressLabelMap.set(key, value)
   })
 
-  /*  Initialize a byte array, proofValue, that starts with the ECDSA-SD disclosure proof header
-  bytes 0xd9, 0x5d, and 0x01.
-  Initialize components to an array with five elements containing the values of: baseSignature,
-  publicKey, signatures, compressedLabelMap, and mandatoryIndexes.
-  CBOR-encode components and append it to proofValue.
-  Return the derived proof as a string with the multibase-base64url-no-pad-encoding of proofValue.
-  That is, return a string starting with "u" and ending with the base64url-no-pad-encoded value of proofValue.
-*/
   let derivedProofValue = new Uint8Array([0xd9, 0x5d, 0x11]);
   const components = [
     signature,

@@ -2,10 +2,6 @@
     Walking through the steps and generating test vectors for verifying a derived
     PQC-SDH selective disclosure proof using selective disclosure primitive functions.
 
-    Reference:
-
-    [3.5.7 Verify Derived Proof (ecdsa-sd-2023)](https://w3c.github.io/vc-di-ecdsa/#verify-derived-proof-ecdsa-sd-2023)
-
     Key initialization step: [3.4.9 createVerifyData](https://w3c.github.io/vc-di-ecdsa/#createverifydata)
 */
 import {createVerifyData} from './CommonAlgs.js';
