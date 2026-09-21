@@ -120,7 +120,6 @@ for (let test of testCases) {
   const signData = concatBytes(
     proofHash,
     mandatoryHash,
-    ...salts,
     ...saltedHashes,
   );
 

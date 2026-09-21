@@ -148,24 +148,12 @@ passing proofHash, publicKey, and mandatoryHash.
   let verificationResult = test.sigAlg.verify(signature, msgHash, pbk);
   console.log(`Base Signature verified: ${verificationResult}`);
 
-  /* For every entry (index, signature) in signatures, verify every signature for every
-selectively disclosed (non-mandatory) statement:
-
-    Initialize verificationResult to the result of applying the verification algorithm
-    Elliptic Curve Digital Signature Algorithm (ECDSA) [FIPS-186-5], with the UTF-8
-    representation of the value at index of nonMandatory as the data to be verified
-    against signature using the public key specified by publicKeyBytes.
-    If verificationResult is false, return false.
-
-    **ISSUE**: this uses the ephemeral public key recovered from the CBOR encoding
-    above and not the public key just used on the base signature.
-*/
 
   const utf8encoder = new TextEncoder(); // To convert utf8 text to Uint8Array
 
   nonMandatory.forEach((value, index) => {
     let aSaltedHash = sha256(
-      concatBytes(salts[selectiveIndexes[index]], utf8encoder.encode(value)),
+      concatBytes(salts[index], utf8encoder.encode(value)),
     );
     let shResult = isEqual(aSaltedHash, saltedHashes[selectiveIndexes[index]]);
     console.log(`Salted hash ${index} verified: ${shResult}`);

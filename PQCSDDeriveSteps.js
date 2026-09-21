@@ -105,6 +105,8 @@ parseBaseProofValue, passing the proofValue from proof. */
     mandatory, nonMandatory} = await createDisclosureData(document, 
     mandatoryPointers, selectivePointers, hmacKey, false);
 
+  const filteredSalts = salts.filter((value, index) => selectiveIndexes.includes(index))
+
   await writeFile(
     baseDir + "derivedUnsignedReveal.json",
     JSON.stringify(revealDocument, replacerMap, 2),
@@ -123,7 +125,7 @@ parseBaseProofValue, passing the proofValue from proof. */
 
   const disclosureData = {
     signature: bytesToHex(signature),
-    salts: salts.map((s) => bytesToHex(s)),
+    filteredSalts: filteredSalts.map((s) => bytesToHex(s)),
     saltedHashes: saltedHashes.map((sh) => bytesToHex(sh)),
     labelMap: verifierLabelMap,
     mandatoryIndexes,
@@ -157,7 +159,7 @@ parseBaseProofValue, passing the proofValue from proof. */
   let derivedProofValue = new Uint8Array([0xd9, 0x5d, 0x11]);
   const components = [
     signature,
-    salts,
+    filteredSalts,
     saltedHashes,
     compressLabelMap,
     mandatoryIndexes,

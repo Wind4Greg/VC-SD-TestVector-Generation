@@ -183,11 +183,10 @@ for (const test of testCases) {
     JSON.stringify(hashDataOutput, null, 2),
   );
 
-  // **NEW** produce a PQC signature over the concatenation of proofHash, mandatoryHash, salts, saltedHashes
+  // **NEW** produce a PQC signature over the concatenation of proofHash, mandatoryHash, saltedHashes
   const bigConcatenation = concatBytes(
     proofHash,
     mandatoryHash,
-    ...salts,
     ...saltedHashes,
   );
   const hashBigConcat = sha256(bigConcatenation);
