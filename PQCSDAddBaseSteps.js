@@ -13,6 +13,7 @@
 */
 
 import { repoPath } from './lib/paths.js';
+import { examples, selectExamples } from './lib/examples.js';
 import { hashingSD, proofConfigCanon, saltedHashingSD, transformSD} from './CommonAlgs.js'
 import { mkdir, readFile, writeFile } from "fs/promises";
 import jsonld from "jsonld";
@@ -43,11 +44,12 @@ function replacerMap(key, value) {
 jsonld.documentLoader = localLoader; // Local loader for JSON-LD
 const utf8encoder = new TextEncoder(); // To convert utf8 text to Uint8Array
 
-// Set input file and output directory here
+// PQC-SD outputs are not yet organized per example, so only "employ" is supported
+const example = examples[selectExamples(["employ"])[0]];
 const dirsAndFiles = {
   outputDir: repoPath('output/pqc-sd/'), // For outputs across different signature schemes
-  inputFile: repoPath('input/employmentAuth.json'),
-  mandatoryFile: repoPath('input/employMandatory.json'),
+  inputFile: example.unsigned,
+  mandatoryFile: example.mandatory,
 };
 
 // Create output directory for the test vectors
@@ -103,7 +105,7 @@ let saltedHashInfo = {
   salts: salts.map((s) => bytesToHex(s)),
   saltedHashes: saltedHashes.map((sh) => bytesToHex(sh)),
 };
-writeFile(
+await writeFile(
   baseDir + "addSaltedHashes.json",
   JSON.stringify(saltedHashInfo, null, 2),
 );
@@ -155,13 +157,13 @@ for (const test of testCases) {
   proofConfig.verificationMethod = "did:key:" + publicKeyMultibase;
   proofConfig.proofPurpose = "assertionMethod";
   proofConfig["@context"] = document["@context"];
-  writeFile(
+  await writeFile(
     baseDir + "addProofConfig.json",
     JSON.stringify(proofConfig, null, 2),
   );
 
   const proofCanon = await proofConfigCanon(proofConfig, document, "sha256") 
-  writeFile(baseDir + "addProofConfigCanon.txt", proofCanon);
+  await writeFile(baseDir + "addProofConfigCanon.txt", proofCanon);
 
   /* **Hashing Step**
    "The required inputs to this algorithm are a transformed data document (transformedDocument)
@@ -179,7 +181,7 @@ for (const test of testCases) {
   const hashDataOutput = {};
   hashDataOutput.proofHash = bytesToHex(proofHash);
   hashDataOutput.mandatoryHash = bytesToHex(mandatoryHash);
-  writeFile(
+  await writeFile(
     baseDir + "addHashData.json",
     JSON.stringify(hashDataOutput, null, 2),
   );
@@ -233,7 +235,7 @@ for (const test of testCases) {
   signedDocument.proof = proofConfig;
   signedDocument.proof.proofValue = baseProof;
   console.log(JSON.stringify(signedDocument, null, 2));
-  writeFile(
+  await writeFile(
     baseDir + "addSignedSDBase.json",
     JSON.stringify(signedDocument, null, 2),
   );

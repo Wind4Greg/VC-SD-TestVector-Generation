@@ -4,6 +4,7 @@
     level steps are *transformation*, *hashing*, and *serialization*.
 */
 import { repoPath } from '../lib/paths.js'
+import { examples, selectExamples } from '../lib/examples.js'
 import { hashingSD, proofConfigCanon, transformSD} from '../CommonAlgs.js'
 import { mkdir, readFile, writeFile } from 'fs/promises'
 import jsonld from 'jsonld'
@@ -28,122 +29,120 @@ function replacerMap (key, value) { // See https://stackoverflow.com/questions/2
   }
 }
 
-// Set input file and output directory here
-// const dirsAndFiles = {
-//   outputDir: repoPath('BBS/output/bbs/'),
-//   inputFile: repoPath('input/windDoc.json'),
-//   mandatoryFile: repoPath('input/windMandatory.json')
-// }
-
-const dirsAndFiles = {
-  outputDir: repoPath('BBS/output/bbs/prc/'),
-  inputFile: repoPath('input/prCredUnsigned.json'),
-  mandatoryFile: repoPath('input/prCredMandatory.json')
+// Output directory for each supported example; choose examples with --example
+const outputDirs = {
+  wind: repoPath('BBS/output/bbs/'),
+  prc: repoPath('BBS/output/bbs/prc/')
 }
 
-// Create output directory for the test vectors
-const baseDir = dirsAndFiles.outputDir
-await mkdir(baseDir, { recursive: true })
+for (const name of selectExamples(Object.keys(outputDirs))) {
+  console.log(`*** Example: ${name} ***`)
+  await generate(examples[name], outputDirs[name])
+}
 
-jsonld.documentLoader = localLoader // Local loader for JSON-LD
+async function generate (example, baseDir) {
+  await mkdir(baseDir, { recursive: true })
 
-// Read input document from a file either treeDoc.json or windDoc.json
-const document = JSON.parse(
-  await readFile(dirsAndFiles.inputFile))
+  jsonld.documentLoader = localLoader // Local loader for JSON-LD
 
-// Obtain key material and process into byte array format
-const keyMaterial = JSON.parse(
-  await readFile(repoPath('input/BBSKeyMaterial.json')))
-// HMAC/PRF key material -- Shared between issuer and holder
-const hmacKeyString = keyMaterial.hmacKeyString
-const hmacKey = hexToBytes(hmacKeyString)
-// Sample long term issuer signing key
-const privateKey = hexToBytes(keyMaterial.privateKeyHex)
-const publicKey = hexToBytes(keyMaterial.publicKeyHex)
-// BLS12-381 G2 public key prefix 0xeb01
-const publicKeyMultibase = base58btc.encode(concatBytes(new Uint8Array([0xeb, 0x01]), publicKey))
+  // Read input document from a file either treeDoc.json or windDoc.json
+  const document = JSON.parse(
+    await readFile(example.unsigned))
 
-const options = { documentLoader: localLoader }
+  // Obtain key material and process into byte array format
+  const keyMaterial = JSON.parse(
+    await readFile(repoPath('input/BBSKeyMaterial.json')))
+  // HMAC/PRF key material -- Shared between issuer and holder
+  const hmacKeyString = keyMaterial.hmacKeyString
+  const hmacKey = hexToBytes(hmacKeyString)
+  // Sample long term issuer signing key
+  const privateKey = hexToBytes(keyMaterial.privateKeyHex)
+  const publicKey = hexToBytes(keyMaterial.publicKeyHex)
+  // BLS12-381 G2 public key prefix 0xeb01
+  const publicKeyMultibase = base58btc.encode(concatBytes(new Uint8Array([0xeb, 0x01]), publicKey))
 
-// Missing Step: **Proof Configuration Options**
-// Set proof options per draft
-const proofOptions = {}
-proofOptions.type = 'DataIntegrityProof'
-proofOptions.cryptosuite = 'bbs-2023'
-proofOptions.created = '2023-08-15T23:36:38Z'
-proofOptions.verificationMethod = 'did:key:' + publicKeyMultibase + '#' + publicKeyMultibase
-proofOptions.proofPurpose = 'assertionMethod'
-proofOptions['@context'] = document['@context']
-writeFile(baseDir + 'addProofConfig.json', JSON.stringify(proofOptions, null, 2))
+  const options = { documentLoader: localLoader }
 
-const proofCanon = await proofConfigCanon(proofOptions, document, "sha256")
-writeFile(baseDir + 'addProofConfigCanon.txt', proofCanon)
+  // Missing Step: **Proof Configuration Options**
+  // Set proof options per draft
+  const proofOptions = {}
+  proofOptions.type = 'DataIntegrityProof'
+  proofOptions.cryptosuite = 'bbs-2023'
+  proofOptions.created = '2023-08-15T23:36:38Z'
+  proofOptions.verificationMethod = 'did:key:' + publicKeyMultibase + '#' + publicKeyMultibase
+  proofOptions.proofPurpose = 'assertionMethod'
+  proofOptions['@context'] = document['@context']
+  await writeFile(baseDir + 'addProofConfig.json', JSON.stringify(proofOptions, null, 2))
 
-const mandatoryPointers = JSON.parse(
-  await readFile(
-    dirsAndFiles.mandatoryFile
+  const proofCanon = await proofConfigCanon(proofOptions, document, "sha256")
+  await writeFile(baseDir + 'addProofConfigCanon.txt', proofCanon)
+
+  const mandatoryPointers = JSON.parse(
+    await readFile(
+      example.mandatory
+    )
   )
-)
 
-// **Transformation Step**
-// General SD transform, note  false ==> don't use legacy ECDSA-SD label map
-const {mandatory, nonMandatory} = await transformSD(document, mandatoryPointers, hmacKey, false);
-const transformed = { mandatoryPointers, mandatory, nonMandatory, hmacKey }
-// Converting maps to arrays of entries for test vector production not required
-// for algorithm.
-const transformOutput = { mandatoryPointers, mandatory, nonMandatory, hmacKeyString }
-await writeFile(baseDir + 'addBaseTransform.json', JSON.stringify(transformOutput, replacerMap, 2))
+  // **Transformation Step**
+  // General SD transform, note  false ==> don't use legacy ECDSA-SD label map
+  const {mandatory, nonMandatory} = await transformSD(document, mandatoryPointers, hmacKey, false);
+  const transformed = { mandatoryPointers, mandatory, nonMandatory, hmacKey }
+  // Converting maps to arrays of entries for test vector production not required
+  // for algorithm.
+  const transformOutput = { mandatoryPointers, mandatory, nonMandatory, hmacKeyString }
+  await writeFile(baseDir + 'addBaseTransform.json', JSON.stringify(transformOutput, replacerMap, 2))
 
-// For illustration purposes only show the canonicalized document nquads
-// const documentCanonQuads = await jsonld.canonize(document) // block of text
-// const documentCanon = documentCanonQuads.split('\n').slice(0, -1).map(q => q + '\n') // array
-// await writeFile(baseDir + 'addBaseDocCanon.json', JSON.stringify(documentCanon, null, 2))
-// await writeFile(baseDir + 'addBaseDocHMACCanon.json', JSON.stringify(stuff.nquads, null, 2))
+  // For illustration purposes only show the canonicalized document nquads
+  // const documentCanonQuads = await jsonld.canonize(document) // block of text
+  // const documentCanon = documentCanonQuads.split('\n').slice(0, -1).map(q => q + '\n') // array
+  // await writeFile(baseDir + 'addBaseDocCanon.json', JSON.stringify(documentCanon, null, 2))
+  // await writeFile(baseDir + 'addBaseDocHMACCanon.json', JSON.stringify(stuff.nquads, null, 2))
 
-// **Hashing Step**
-const {proofHash, mandatoryHash} = hashingSD(mandatory, proofCanon, "sha256");
+  // **Hashing Step**
+  const {proofHash, mandatoryHash} = hashingSD(mandatory, proofCanon, "sha256");
 
-const hashData = klona(transformed)
-hashData.proofHash = proofHash
-hashData.mandatoryHash = mandatoryHash
-// For test vector purposes convert maps to arrays of pairs and uint8arrays to hex
-// and don't rewrite the transformed information.
-const hashDataOutput = {}
-hashDataOutput.proofHash = bytesToHex(proofHash)
-hashDataOutput.mandatoryHash = bytesToHex(mandatoryHash)
-writeFile(baseDir + 'addHashData.json', JSON.stringify(hashDataOutput, null, 2))
+  const hashData = klona(transformed)
+  hashData.proofHash = proofHash
+  hashData.mandatoryHash = mandatoryHash
+  // For test vector purposes convert maps to arrays of pairs and uint8arrays to hex
+  // and don't rewrite the transformed information.
+  const hashDataOutput = {}
+  hashDataOutput.proofHash = bytesToHex(proofHash)
+  hashDataOutput.mandatoryHash = bytesToHex(mandatoryHash)
+  await writeFile(baseDir + 'addHashData.json', JSON.stringify(hashDataOutput, null, 2))
 
-/* Create BBS signature */
-const bbsHeader = concatBytes(proofHash, mandatoryHash)
-const te = new TextEncoder()
-const bbsMessages = [...nonMandatory.values()].map(txt => te.encode(txt)) // must be byte arrays
-const msgScalars = await msgsToScalars(bbsMessages, API_ID_BBS_SHA)
-const gens = await prepareGenerators(bbsMessages.length + 1, API_ID_BBS_SHA)
-const bbsSignature = await sign(privateKey, publicKey, bbsHeader, msgScalars, gens, API_ID_BBS_SHA)
-console.log(`BBS signature: ${bytesToHex(bbsSignature)}`)
+  /* Create BBS signature */
+  const bbsHeader = concatBytes(proofHash, mandatoryHash)
+  const te = new TextEncoder()
+  const bbsMessages = [...nonMandatory.values()].map(txt => te.encode(txt)) // must be byte arrays
+  const msgScalars = await msgsToScalars(bbsMessages, API_ID_BBS_SHA)
+  const gens = await prepareGenerators(bbsMessages.length + 1, API_ID_BBS_SHA)
+  const bbsSignature = await sign(privateKey, publicKey, bbsHeader, msgScalars, gens, API_ID_BBS_SHA)
+  console.log(`BBS signature: ${bytesToHex(bbsSignature)}`)
 
-const rawBaseSignatureInfo = {
-  bbsSignature: bytesToHex(bbsSignature),
-  mandatoryPointers
+  const rawBaseSignatureInfo = {
+    bbsSignature: bytesToHex(bbsSignature),
+    mandatoryPointers
+  }
+  // console.log(rawBaseSignatureInfo);
+  await writeFile(baseDir + 'addRawBaseSignatureInfo.json', JSON.stringify(rawBaseSignatureInfo, null, 2))
+
+  // CBOR-encode components and append it to proofValue.
+  // bbsSignature, bbsHeader, publicKey, hmacKey, and mandatoryPointers
+
+  let proofValue = new Uint8Array([0xd9, 0x5d, 0x02])
+  const components = [bbsSignature, bbsHeader, publicKey, hmacKey, mandatoryPointers]
+  const cborThing = encodeCbor(components)
+  proofValue = concatBytes(proofValue, cborThing)
+  const baseProof = base64url.encode(proofValue)
+  console.log(baseProof)
+  console.log(`Length of baseProof is ${baseProof.length} characters`)
+
+  // Construct and Write Signed Document
+  const signedDocument = klona(document)
+  delete proofOptions['@context']
+  signedDocument.proof = proofOptions
+  signedDocument.proof.proofValue = baseProof
+  console.log(JSON.stringify(signedDocument, null, 2))
+  await writeFile(baseDir + 'addSignedSDBase.json', JSON.stringify(signedDocument, null, 2))
 }
-// console.log(rawBaseSignatureInfo);
-writeFile(baseDir + 'addRawBaseSignatureInfo.json', JSON.stringify(rawBaseSignatureInfo, null, 2))
-
-// CBOR-encode components and append it to proofValue.
-// bbsSignature, bbsHeader, publicKey, hmacKey, and mandatoryPointers
-
-let proofValue = new Uint8Array([0xd9, 0x5d, 0x02])
-const components = [bbsSignature, bbsHeader, publicKey, hmacKey, mandatoryPointers]
-const cborThing = encodeCbor(components)
-proofValue = concatBytes(proofValue, cborThing)
-const baseProof = base64url.encode(proofValue)
-console.log(baseProof)
-console.log(`Length of baseProof is ${baseProof.length} characters`)
-
-// Construct and Write Signed Document
-const signedDocument = klona(document)
-delete proofOptions['@context']
-signedDocument.proof = proofOptions
-signedDocument.proof.proofValue = baseProof
-console.log(JSON.stringify(signedDocument, null, 2))
-writeFile(baseDir + 'addSignedSDBase.json', JSON.stringify(signedDocument, null, 2))

@@ -97,7 +97,7 @@ const derivedProofValue = {
   adjSelectedIndexes
 }
 // console.log(labelMap);
-writeFile(baseDir + 'verifyDerivedProofValue.json', JSON.stringify(derivedProofValue, null, 2))
+await writeFile(baseDir + 'verifyDerivedProofValue.json', JSON.stringify(derivedProofValue, null, 2))
 
 // Initialize labelMapFactoryFunction to the result of calling the "createLabelMapFunction" algorithm.
 const labelMapFactoryFunction = await createLabelMapFunction({ labelMap })
@@ -111,7 +111,7 @@ const nquads = await labelReplacementCanonicalizeJsonLd({
   labelMapFactoryFunction,
   options
 })
-writeFile(baseDir + 'verifyNQuads.json', JSON.stringify(nquads, null, 2))
+await writeFile(baseDir + 'verifyNQuads.json', JSON.stringify(nquads, null, 2))
 const mandatory = []
 const nonMandatory = []
 nquads.forEach(function (value, index) {

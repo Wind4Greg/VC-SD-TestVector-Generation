@@ -243,4 +243,4 @@ console.log(`Length of derivedProofValue is ${derivedProofValueString.length} ch
 newProof.proofValue = derivedProofValueString
 revealDocument.proof = newProof
 // console.log(JSON.stringify(revealDocument, null, 2));
-writeFile(baseDir + 'derivedRevealDocument.json', JSON.stringify(revealDocument, null, 2))
+await writeFile(baseDir + 'derivedRevealDocument.json', JSON.stringify(revealDocument, null, 2))

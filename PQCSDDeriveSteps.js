@@ -5,6 +5,7 @@
 */
 
 import { repoPath } from './lib/paths.js';
+import { examples, selectExamples } from './lib/examples.js';
 import { mkdir, readFile, writeFile } from "fs/promises";
 import {createDisclosureData} from './CommonAlgs.js';
 import jsonld from "jsonld";
@@ -28,8 +29,10 @@ function replacerMap(key, value) {
 
 jsonld.documentLoader = localLoader; // Local loader for JSON-LD
 
+// PQC-SD outputs are not yet organized per example, so only "employ" is supported
+const example = examples[selectExamples(["employ"])[0]];
 const dirsAndFiles = {
-  selectFile: repoPath('input/employSelective.json'),
+  selectFile: example.selective,
 };
 
 const testCases = [
@@ -172,7 +175,7 @@ parseBaseProofValue, passing the proofValue from proof. */
   newProof.proofValue = derivedProofValueString;
   revealDocument.proof = newProof;
   // console.log(JSON.stringify(revealDocument, null, 2));
-  writeFile(
+  await writeFile(
     baseDir + "derivedRevealDocument.json",
     JSON.stringify(revealDocument, null, 2),
   );

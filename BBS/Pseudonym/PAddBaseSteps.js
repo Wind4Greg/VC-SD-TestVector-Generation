@@ -67,9 +67,9 @@ proofConfig.created = '2023-08-15T23:36:38Z'
 proofConfig.verificationMethod = 'did:key:' + publicKeyMultibase + '#' + publicKeyMultibase
 proofConfig.proofPurpose = 'assertionMethod'
 proofConfig['@context'] = document['@context']
-writeFile(baseDir + 'addProofConfig.json', JSON.stringify(proofConfig, null, 2))
+await writeFile(baseDir + 'addProofConfig.json', JSON.stringify(proofConfig, null, 2))
 const proofCanon = await jsonld.canonize(proofConfig)
-writeFile(baseDir + 'addProofConfigCanon.txt', proofCanon)
+await writeFile(baseDir + 'addProofConfigCanon.txt', proofCanon)
 
 // **Transformation Step**
 const hmacFunc = await createHmac({ key: hmacKey })
@@ -115,7 +115,7 @@ hashData.mandatoryHash = mandatoryHash
 const hashDataOutput = {}
 hashDataOutput.proofHash = bytesToHex(proofHash)
 hashDataOutput.mandatoryHash = bytesToHex(mandatoryHash)
-writeFile(baseDir + 'addHashData.json', JSON.stringify(hashDataOutput, null, 2))
+await writeFile(baseDir + 'addHashData.json', JSON.stringify(hashDataOutput, null, 2))
 
 /* Create BBS signature */
 const bbsHeader = concatBytes(proofHash, mandatoryHash)
@@ -141,7 +141,7 @@ const rawBaseSignatureInfo = {
   featureOption: 'pseudonym'
 }
 // console.log(rawBaseSignatureInfo);
-writeFile(baseDir + 'addRawBaseSignatureInfo.json', JSON.stringify(rawBaseSignatureInfo, null, 2))
+await writeFile(baseDir + 'addRawBaseSignatureInfo.json', JSON.stringify(rawBaseSignatureInfo, null, 2))
 
 // CBOR-encode components and append it to proofValue.
 // bbsSignature, bbsHeader, publicKey, hmacKey, and mandatoryPointers
@@ -162,4 +162,4 @@ delete proofConfig['@context']
 signedDocument.proof = proofConfig
 signedDocument.proof.proofValue = baseProof
 console.log(JSON.stringify(signedDocument, null, 2))
-writeFile(baseDir + 'addSignedSDBase.json', JSON.stringify(signedDocument, null, 2))
+await writeFile(baseDir + 'addSignedSDBase.json', JSON.stringify(signedDocument, null, 2))
