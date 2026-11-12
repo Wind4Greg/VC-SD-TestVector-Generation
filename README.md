@@ -8,6 +8,8 @@ This repository contains JavaScript (Node.js) code for the generation of test ve
 
 Recently the most of the common algorithms for implementing selective disclosure (SD) has been factored out into the [VC-Data-Integrity](https://github.com/w3c/vc-data-integrity) specification. Currently there are three approaches to SD: (a)Signed Individual Claims (SIC) suitable for digital signature algorithms that produce short signatures. (b) Salted Hash of Claims (SHoC) suitable for digital signature algorithms that produce lengthy signatures. And (c) BBS which provides SD directly at the cryptographic layer and provides for extra privacy via unlinkable proofs.
 
+**TODO**: need to update the structure of this repo to better reflect these three approaches.
+
 In the latest [VC-Data-Integrity](https://github.com/w3c/vc-data-integrity) update the [SHoC SD approach]([VC-Data-Integrity](https://github.com/w3c/vc-data-integrity)) has been updated with two key optimizations. **TODO**: implement these optimizations here and produce test vectors.
 
 **TODO**: All section below need to be reviewed and updated. 
