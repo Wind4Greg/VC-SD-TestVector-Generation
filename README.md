@@ -1,14 +1,16 @@
-# Test Vector Derivation for ECDSA-SD
+# Test Vector Derivation for VC Selective Disclosure
 
-This repository contains JavaScript (Node.js) code for the generation of test vectors for the ECDSA-SD (selective disclosure with ECDSA) Verifiable Credential Data Integrity specification, [VC-DI-ECDSA](https://w3c.github.io/vc-di-ecdsa/).
+This repository contains JavaScript (Node.js) code for the generation of test vectors for selective disclosure (SD) contained in the following specifications and draft specifications:
 
-We will be using the specification, [DigitalBazaar: DI-SD-Primitives](https://github.com/digitalbazaar/di-sd-primitives), and my own code to come up with a consistent set of test vectors.
+1. ECDSA-SD (selective disclosure with ECDSA) Verifiable Credential Data Integrity specification, [VC-DI-ECDSA](https://w3c.github.io/vc-di-ecdsa/). The `TestVector` directory of the repo contains all the test vectors for the spec and includes the SD test vectors generated here.
+2. Quantum resistant selective disclosure [VC-DI-Quantum Resistant](https://github.com/w3c/vc-di-quantum-resistant). The `testVector` directory of the repo contains all the test vectors for the spec and includes the SD test vectors generated here.
+3. BBS Data Integrity cryptosuite [VC-DI-BBS](https://github.com/w3c/vc-di-bbs). The `TestVector` directory of the repo contains all the test vectors for the spec and includes the SD test vectors generated here.
 
-Notes:
+Recently the most of the common algorithms for implementing selective disclosure (SD) has been factored out into the [VC-Data-Integrity](https://github.com/w3c/vc-data-integrity) specification. Currently there are three approaches to SD: (a)Signed Individual Claims (SIC) suitable for digital signature algorithms that produce short signatures. (b) Salted Hash of Claims (SHoC) suitable for digital signature algorithms that produce lengthy signatures. And (c) BBS which provides SD directly at the cryptographic layer and provides for extra privacy via unlinkable proofs.
 
-* This effort is relatively new so code, example inputs, and generated test vectors are subject to change.
-* As time progresses it is envisioned that I will implement more of the selective disclosure primitive functions and generate test vectors for those as well as ones already done for the key selective disclosure signature steps.
-* Included are non-SD creation/verification files for reference: [ECDSAKeyCheck.js](ECDSA/ECDSAKeyCheck.js), [ECDSAP256Create.js](ECDSA/ECDSAP256Create.js) and [ECDSAP256Verify.js](ECDSA/ECDSAP256Verify.js).
+In the latest [VC-Data-Integrity](https://github.com/w3c/vc-data-integrity) update the [SHoC SD approach]([VC-Data-Integrity](https://github.com/w3c/vc-data-integrity)) has been updated with two key optimizations. **TODO**: implement these optimizations here and produce test vectors.
+
+**TODO**: All section below need to be reviewed and updated. 
 
 ## Implementation Notes
 
@@ -19,7 +21,7 @@ Libraries used:
 * [jsonld]() for JSON-LD processing
 * [multiformats](), [varint]() for Multiformat processing
 * [klona](https://www.npmjs.com/package/klona) For deep cloning of arrays and objects
-* [di-sd-primitives](https://github.com/digitalbazaar/di-sd-primitives/tree/main) Some of the processing is quite involved so will compare my implementations against this. Will use both to generate test vectors. Using NPM's [link](https://docs.npmjs.com/cli/v8/commands/npm-link) mechanism to tie to a locally built version of this. In this project use the command `npm link @digitalbazaar/di-sd-primitives` after running `npm link` within that project.
+* [DigitalBazaar: DI-SD-Primitives](https://github.com/digitalbazaar/di-sd-primitives)
 
 Libraries used to investigate stuff:
 
