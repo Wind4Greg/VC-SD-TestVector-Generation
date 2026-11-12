@@ -105,6 +105,17 @@ To add an example:
 
 The [VC-Data-Integrity](https://github.com/w3c/vc-data-integrity) SHoC approach has been updated with two optimizations. These still need to be implemented here, and new test vectors produced.
 
+One of the optimizations is to use Merkle trees with "sub-tree" inclusion proofs and verification. Sample code and algorithms for this with illustrative figures are given in the repo [SimpleMerkle](https://github.com/Wind4Greg/SimpleMerkle).
+
+The [VC-Data-Integrity](https://github.com/w3c/vc-data-integrity) specification contains alternative more formal descriptions of the Merkle Tree algorithms in the following sections:
+
+1. [Merkel Tree Hash (MTH)](https://w3c.github.io/vc-data-integrity/#MTH)
+2. [ComputeTreeShape](https://w3c.github.io/vc-data-integrity/#ComputeTreeShape), in the code of [SimpleMerkle](https://github.com/Wind4Greg/SimpleMerkle) I constructed the full tree and gave the nodes names like those mentioned in the spec.
+3. [CreateSubtreeProof](https://w3c.github.io/vc-data-integrity/#CreateSubtreeProof)
+4. [VerifySubtreeProof](https://w3c.github.io/vc-data-integrity/#VerifySubtreeProof)
+
+We need to verify that these algorithms descriptions are implementable and produce the same results as those in [SimpleMerkle](https://github.com/Wind4Greg/SimpleMerkle).
+
 ## Libraries used
 
 * [@noble/hashes](https://github.com/paulmillr/noble-hashes): hashes and HMAC.
