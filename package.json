@@ -5,7 +5,11 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "gen:sic": "node tools/generate.js sic",
+    "gen:shoc": "node tools/generate.js shoc",
+    "gen:bbs": "node tools/generate.js bbs",
+    "gen:all": "node tools/generate.js all",
+    "test": "node tools/generate.js all --verify-only"
   },
   "keywords": [],
   "author": "Dr. Greg M. Bernstein",

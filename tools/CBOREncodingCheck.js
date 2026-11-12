@@ -2,7 +2,7 @@
     Different CBOR libraries produce different outputs due to tagging Uint8Arrays.
     Seeing if we can turn it off and if outputs are the same.
 */
-import { repoPath } from './lib/paths.js'
+import { repoPath } from '../lib/paths.js'
 import { readFile } from 'fs/promises'
 import cbor from 'cbor'
 import { encode } from 'cborg'
