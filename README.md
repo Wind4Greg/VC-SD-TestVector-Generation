@@ -1,72 +1,118 @@
-# Test Vector Derivation for VC Selective Disclosure
+# Test Vectors for VC Selective Disclosure
 
-This repository contains JavaScript (Node.js) code for the generation of test vectors for selective disclosure (SD) contained in the following specifications and draft specifications:
+This repository contains JavaScript (Node.js) code that generates the selective disclosure (SD) test vectors for these specifications:
 
-1. ECDSA-SD (selective disclosure with ECDSA) Verifiable Credential Data Integrity specification, [VC-DI-ECDSA](https://w3c.github.io/vc-di-ecdsa/). The `TestVector` directory of the repo contains all the test vectors for the spec and includes the SD test vectors generated here.
-2. Quantum resistant selective disclosure [VC-DI-Quantum Resistant](https://github.com/w3c/vc-di-quantum-resistant). The `testVector` directory of the repo contains all the test vectors for the spec and includes the SD test vectors generated here.
-3. BBS Data Integrity cryptosuite [VC-DI-BBS](https://github.com/w3c/vc-di-bbs). The `TestVector` directory of the repo contains all the test vectors for the spec and includes the SD test vectors generated here.
+| Approach | Folder | Cryptosuites | Specification |
+|:--|:--|:--|:--|
+| Signed Individual Claims (SIC) | [sic/](sic/) | `ecdsa-sd-2023` | [VC-DI-ECDSA](https://w3c.github.io/vc-di-ecdsa/) |
+| Salted Hash of Claims (SHoC) | [shoc/](shoc/) | `mldsa44-sd-2024`, `slhdsa128-sd-2024`, `falcon512-sd-2024` | [VC-DI-Quantum-Resistant](https://github.com/w3c/vc-di-quantum-resistant) |
+| BBS | [bbs/](bbs/) | `bbs-2023`, including anonymous holder binding and pseudonyms | [VC-DI-BBS](https://github.com/w3c/vc-di-bbs) |
 
-Recently the most of the common algorithms for implementing selective disclosure (SD) has been factored out into the [VC-Data-Integrity](https://github.com/w3c/vc-data-integrity) specification. Currently there are three approaches to SD: (a)Signed Individual Claims (SIC) suitable for digital signature algorithms that produce short signatures. (b) Salted Hash of Claims (SHoC) suitable for digital signature algorithms that produce lengthy signatures. And (c) BBS which provides SD directly at the cryptographic layer and provides for extra privacy via unlinkable proofs.
+The algorithms the three approaches share have been factored out into the [VC-Data-Integrity](https://github.com/w3c/vc-data-integrity) specification. The approaches differ in how claims are signed:
 
-**TODO**: need to update the structure of this repo to better reflect these three approaches.
+* **SIC** signs each non-mandatory claim individually. It suits signature algorithms with short signatures, such as ECDSA.
+* **SHoC** signs one list of salted claim hashes. It suits algorithms with long signatures, such as the post-quantum ones.
+* **BBS** provides selective disclosure at the cryptographic layer, and its derived proofs are unlinkable.
 
-In the latest [VC-Data-Integrity](https://github.com/w3c/vc-data-integrity) update the [SHoC SD approach]([VC-Data-Integrity](https://github.com/w3c/vc-data-integrity)) has been updated with two key optimizations. **TODO**: implement these optimizations here and produce test vectors.
+Each specification repository keeps its test vectors in its own test vector directory. The files are copied there from the output folders here.
 
-**TODO**: All section below need to be reviewed and updated. 
+## Quick start
 
-## Implementation Notes
+```
+npm install
+npm test            # verify all committed test vectors (changes nothing)
+npm run gen:all     # regenerate all test vectors
+```
 
-Libraries used:
+To regenerate one approach, use `npm run gen:sic`, `gen:shoc` or `gen:bbs`. To regenerate only some examples, add `--example`:
 
-* [@noble/hashes]() For hashes and HMAC
-* [@noble/curves]() For signatures
-* [jsonld]() for JSON-LD processing
-* [multiformats](), [varint]() for Multiformat processing
-* [klona](https://www.npmjs.com/package/klona) For deep cloning of arrays and objects
-* [DigitalBazaar: DI-SD-Primitives](https://github.com/digitalbazaar/di-sd-primitives)
+```
+npm run gen:sic -- --example prc
+npm run gen:all -- -e wind,prc
+```
 
-Libraries used to investigate stuff:
+Groups that don't support the requested examples are skipped. The generator stops a group and exits non-zero if a step fails or any verification reports `verified: false`.
 
-* [json-pointer](https://www.npmjs.com/package/json-pointer) To check that my example pointers are okay and select what I wanted.
+Each step script can also be run on its own from any directory, for example `node sic/AddBaseSteps.js -e employ`. The steps in each approach depend on each other's outputs, so run them in the order given in that approach's README.
 
-## Raw Document and Mandatory Reveal
+### Which outputs change when regenerated
 
-To produce the test vectors we need an input document, i.e., and unsigned verifiable credential. For this we use the file [windDoc.json](input/windDoc.json). Change this if you want to generate different examples, however you may also need to deal with JSON-LD document loading. See [documentLoader.js](lib/documentLoader.js) and the `lib/contexts` directory. To indicate which parts of the document must be **mandatory* to reveal (from the issuer perspective) we use the array of JSON Pointers in the file [windMandatory.json](input/windMandatory.json).
+The SIC and BBS baseline outputs are deterministic: regenerating them gives byte-identical files. Some outputs change on every run, because the algorithms call for fresh randomness:
 
-## Add Base Proof Steps and Test Vectors
+* **SHoC:** the salts.
+* **BBS holder binding and pseudonym features:** the commitments and the proofs.
 
-The code in [sic/AddBaseSteps.js](sic/AddBaseSteps.js) produces a signed selective disclosure base proof, [addSignedSDBase.json](sic/output/ecdsa-sd-2023/wind/addSignedSDBase.json) and test vectors for intermediate steps. These are contained in the directory `sic/output/ecdsa-sd-2023/wind` and have files names prefixed with `add`.
+For those, `npm test` is the check that matters.
 
-## Derived Proof Steps and Test Vectors
+## Repository layout
 
-The code in [sic/DeriveSteps.js](sic/DeriveSteps.js) produces a selective disclosure derived proof, [deriveRevealDocument.json](sic/output/ecdsa-sd-2023/wind/derivedRevealDocument.json) and test vectors for intermediate steps. These are contained in the directory `sic/output/ecdsa-sd-2023/wind` and have files names prefixed with `derive`. It starts with the file [addSignedSDBase.json](sic/output/ecdsa-sd-2023/wind/addSignedSDBase.json).
+```
+lib/        code shared by all approaches
+  sdCommon.js       VC-DI common SD algorithms (see below)
+  labelMaps.js      blank node label map functions
+  proofValue.js     proof value encoding: header bytes + CBOR + multibase
+  examples.js       example registry and the --example option
+  paths.js          repo-root-relative paths
+  documentLoader.js, contexts/   local JSON-LD context loading
+sic/        SIC step scripts, proof values, output/
+shoc/       SHoC step scripts, proof values, output/
+bbs/        BBS step scripts per feature, BBS crypto (bbs/lib/), output/
+input/      example credentials, pointers, and key material
+tools/      generate.js (the npm scripts) and small investigation scripts
+```
 
-## Verify Derived Proof Steps and Test Vectors
+Output folders are organized as `<approach>/output/<suite or feature>/<example>/`. File names start with the step that produced them:
 
-The code in [sic/VerifyDeriveSteps.js](sic/VerifyDeriveSteps.js) verifies a selective disclosure derived document, and generates test vectors for intermediate steps. The test vectors are contained in the directory `sic/output/ecdsa-sd-2023/wind` and have files names prefixed with `verify`. It starts with the file [deriveRevealDocument.json](sic/output/ecdsa-sd-2023/wind/derivedRevealDocument.json).
+* `add…`: creating the base proof.
+* `derived…`: creating the derived (disclosure) proof.
+* `verify…`: verifying.
 
-# Test Vector Generation for SD-Primitives/BBS
+### Shared algorithms
 
-It turns out that the selective disclosure primitives developed for ECDSA-SD are also applicable for use with BBS signatures. Although this is not yet part of a draft specification they following modification to the steps used in ECDSA-SD can produce BBS (selective disclosure signatures):
+[lib/sdCommon.js](lib/sdCommon.js) implements the VC-Data-Integrity selective disclosure functions that every approach uses:
 
-To come up with the BBS base proof we need:
+| Function | Purpose |
+|:--|:--|
+| `proofConfigCanon` | Base proof configuration: canonicalize the proof options. |
+| `transformSD` | Base proof transformation: canonicalize, apply the label map, and split into mandatory and non-mandatory N-Quads. |
+| `hashingSD` | Base proof hashing: `proofHash` and `mandatoryHash`. |
+| `saltedHashingSD` | Salts and salted hashes of the non-mandatory N-Quads (SHoC only). |
+| `createDisclosureData` | Reveal document, label map, mandatory and selective indexes for a derived proof. |
+| `createVerifyData` | `proofHash`, `mandatoryHash` and non-mandatory N-Quads for verifying a derived proof. |
 
-1. Unsigned Document
-2. HMAC Key
-3. Mandatory Pointers
-4. Use a concatenation of proofHash and mandatoryHash as input to the BBS *header*
-5. Use the list of non-mandatory nquads as the BBS *messages*
-6. Produce the BBS signature using the above *header* and *messages*
-7. serialize via CBOR etc the following: BBSSignature, hmacKey, mandatoryPointers
+The approach-specific parts are serialization, parsing and the cryptography. They live in each approach's `proofValue.js` and step scripts.
 
-To come up with the BBS Derived Proof we need:
+## Examples
 
-1. BBSSignature (BBS proof input)
-2. HMAC key
-3. List of non-mandatory messages (BBS proof input)
-4. Indexes of selective messages to be revealed (BBS proof input)
-5. Need to recreate the header via proofConfig and mandatory disclosure stuff
-6. Generate the BBSProofValue (output of BBS proof procedure)
-7. serialize via CBOR: BBSProofValue, compressedLabelMap, mandatoryIndexes, selective indexes
+| Name | Unsigned credential | Mandatory pointers | Selective pointers | Used by |
+|:--|:--|:--|:--|:--|
+| `wind` | [windDoc.json](input/windDoc.json) | [windMandatory.json](input/windMandatory.json) | [windSelective.json](input/windSelective.json) | SIC, BBS baseline |
+| `employ` | [employmentAuth.json](input/employmentAuth.json) | [employMandatory.json](input/employMandatory.json) | [employSelective.json](input/employSelective.json) | SIC, SHoC |
+| `prc` | [prCredUnsigned.json](input/prCredUnsigned.json) | [prCredMandatory.json](input/prCredMandatory.json) | [prCredSelective.json](input/prCredSelective.json) | SIC, BBS baseline |
+| `license` | [license.json](input/license.json) | [licenseMandatory.json](input/licenseMandatory.json) | [licenseSelective.json](input/licenseSelective.json) | BBS features |
+| `tree` | [treeDoc.json](input/treeDoc.json) | [treeMandatory.json](input/treeMandatory.json) | [treeSelective.json](input/treeSelective.json) | (registered, not currently generated) |
 
-See the directory `bbs` for step by step code and test vectors.
+The mandatory pointers are the JSON Pointers the issuer requires every holder to reveal. The selective pointers are the additional claims the holder chooses to reveal.
+
+To add an example:
+
+1. Add its three input files to `input/`.
+2. Register it in [lib/examples.js](lib/examples.js).
+3. Add an output folder for it to the `outputDirs` map in each step script that should generate it, and to the group's `examples` list in [tools/generate.js](tools/generate.js).
+4. If the credential uses a JSON-LD context that isn't already in `lib/contexts/`, add the context there and register it in [lib/documentLoader.js](lib/documentLoader.js).
+
+## To do
+
+The [VC-Data-Integrity](https://github.com/w3c/vc-data-integrity) SHoC approach has been updated with two optimizations. These still need to be implemented here, and new test vectors produced.
+
+## Libraries used
+
+* [@noble/hashes](https://github.com/paulmillr/noble-hashes): hashes and HMAC.
+* [@noble/curves](https://github.com/paulmillr/noble-curves): ECDSA and BLS12-381 curve operations.
+* [@noble/post-quantum](https://github.com/paulmillr/noble-post-quantum): ML-DSA, SLH-DSA and Falcon signatures.
+* [jsonld](https://github.com/digitalbazaar/jsonld.js): JSON-LD processing and RDF canonicalization.
+* [@digitalbazaar/di-sd-primitives](https://github.com/digitalbazaar/di-sd-primitives): selective disclosure primitives.
+* [multiformats](https://github.com/multiformats/js-multiformats): multibase encoding.
+* [cbor2](https://github.com/hildjj/cbor2): CBOR encoding of proof values.
+* [klona](https://www.npmjs.com/package/klona): deep cloning.
+* [json-pointer](https://www.npmjs.com/package/json-pointer): checking the example pointers (`sic/PointerCheck.js`).
