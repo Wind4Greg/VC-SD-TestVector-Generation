@@ -12,14 +12,14 @@
     2. [serializeDerivedProofValue](https://w3c.github.io/vc-di-ecdsa/#serializederivedproofvalue)
 */
 import { repoPath } from './lib/paths.js';
+import { parseBaseProofValue, serializeDerivedProofValue } from './sic/proofValue.js';
 import { examples, selectExamples } from './lib/examples.js';
-import {createDisclosureData} from './CommonAlgs.js';
+import {createDisclosureData} from './lib/sdCommon.js';
 import { mkdir, readFile, writeFile } from 'fs/promises'
 import jsonld from 'jsonld'
-import { localLoader } from './documentLoader.js'
+import { localLoader } from './lib/documentLoader.js'
 import { bytesToHex, concatBytes } from '@noble/hashes/utils'
 import { base58btc } from 'multiformats/bases/base58'
-import { decode as decodeCbor, encode as encodeCbor } from 'cbor2'
 import { base64url } from 'multiformats/bases/base64'
 // For serialization of JavaScript Map via JSON
 function replacerMap (key, value) { // See https://stackoverflow.com/questions/29085197/how-do-you-json-stringify-an-es6-map
@@ -70,18 +70,8 @@ async function generate (example, baseDir) {
   // **Parse Base Proof**
   const proof = document.proof
   delete document.proof // IMPORTANT: all work uses document without proof
-  const proofValue = proof.proofValue // base64url encoded
-  const proofValueBytes = base64url.decode(proofValue)
-  // console.log(proofValueBytes.length);
-  // check header bytes are: 0xd9, 0x5d, and 0x00
-  if (proofValueBytes[0] !== 0xd9 || proofValueBytes[1] !== 0x5d || proofValueBytes[2] !== 0x00) {
-    throw new Error('Invalid proofValue header')
-  }
-  const decodeThing = decodeCbor(proofValueBytes.slice(3))
-  if (decodeThing.length !== 5) {
-    throw new Error('Bad length of CBOR decoded proofValue data')
-  }
-  const [baseSignature, proofPublicKey, hmacKey, signatures, mandatoryPointers] = decodeThing
+  const { baseSignature, publicKey: proofPublicKey, hmacKey, signatures, mandatoryPointers } =
+    parseBaseProofValue(proof.proofValue)
   const baseProofData = {
     baseSignature: bytesToHex(baseSignature),
     proofPublicKey: base58btc.encode(proofPublicKey),
@@ -140,12 +130,7 @@ async function generate (example, baseDir) {
           the characters after the "u" prefix in v.
       Return map as compressed label map.
   */
-  const compressLabelMap = new Map()
-  verifierLabelMap.forEach(function (v, k) {
-    const key = parseInt(k.split('c14n')[1])
-    const value = base64url.decode(v)
-    compressLabelMap.set(key, value)
-  })
+
 
   /*  Initialize a byte array, proofValue, that starts with the ECDSA-SD disclosure proof header
     bytes 0xd9, 0x5d, and 0x01.
@@ -155,11 +140,10 @@ async function generate (example, baseDir) {
     Return the derived proof as a string with the multibase-base64url-no-pad-encoding of proofValue.
     That is, return a string starting with "u" and ending with the base64url-no-pad-encoded value of proofValue.
   */
-  let derivedProofValue = new Uint8Array([0xd9, 0x5d, 0x01])
-  const components = [baseSignature, proofPublicKey, filteredSignatures, compressLabelMap, mandatoryIndexes]
-  const cborThing = encodeCbor(components)
-  derivedProofValue = concatBytes(derivedProofValue, cborThing)
-  const derivedProofValueString = base64url.encode(derivedProofValue)
+  const derivedProofValueString = serializeDerivedProofValue({
+    baseSignature, publicKey: proofPublicKey, signatures: filteredSignatures,
+    labelMap: verifierLabelMap, mandatoryIndexes
+  })
   // console.log(derivedProofValueString)
   // console.log(`Length of derivedProofValue is ${derivedProofValueString.length} characters`)
   /*  Replace proofValue in newProof with the result of calling the algorithm in Section 3.4.7

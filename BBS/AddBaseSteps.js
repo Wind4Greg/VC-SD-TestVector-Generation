@@ -4,17 +4,17 @@
     level steps are *transformation*, *hashing*, and *serialization*.
 */
 import { repoPath } from '../lib/paths.js'
+import { serializeBaseProofValue } from './proofValue.js'
 import { examples, selectExamples } from '../lib/examples.js'
-import { hashingSD, proofConfigCanon, transformSD} from '../CommonAlgs.js'
+import { hashingSD, proofConfigCanon, transformSD} from '../lib/sdCommon.js'
 import { mkdir, readFile, writeFile } from 'fs/promises'
 import jsonld from 'jsonld'
-import { localLoader } from '../documentLoader.js'
+import { localLoader } from '../lib/documentLoader.js'
 import { sha256 } from '@noble/hashes/sha256'
 import { bytesToHex, concatBytes, hexToBytes } from '@noble/hashes/utils'
 import { API_ID_BBS_SHA, messages_to_scalars as msgsToScalars, prepareGenerators, sign } from './lib/BBS.js'
 import { klona } from 'klona'
 import { base58btc } from 'multiformats/bases/base58'
-import { encode as encodeCbor } from 'cbor2'
 import { base64url } from 'multiformats/bases/base64'
 
 // For serialization of JavaScript Map via JSON
@@ -130,11 +130,9 @@ async function generate (example, baseDir) {
   // CBOR-encode components and append it to proofValue.
   // bbsSignature, bbsHeader, publicKey, hmacKey, and mandatoryPointers
 
-  let proofValue = new Uint8Array([0xd9, 0x5d, 0x02])
-  const components = [bbsSignature, bbsHeader, publicKey, hmacKey, mandatoryPointers]
-  const cborThing = encodeCbor(components)
-  proofValue = concatBytes(proofValue, cborThing)
-  const baseProof = base64url.encode(proofValue)
+  const baseProof = serializeBaseProofValue({
+    bbsSignature, bbsHeader, publicKey, hmacKey, mandatoryPointers
+  })
   console.log(baseProof)
   console.log(`Length of baseProof is ${baseProof.length} characters`)
 

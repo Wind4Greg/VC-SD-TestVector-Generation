@@ -2,21 +2,21 @@
     Walking through the steps for verifying a PQC-SD base proof.
 */
 import { repoPath } from './lib/paths.js';
+import { parseBaseProofValue } from './shoc/proofValue.js';
 import { mkdir, readFile } from "fs/promises";
 import { klona } from "klona";
 import {
   createHmac,
   canonicalizeAndGroup,
 } from "@digitalbazaar/di-sd-primitives";
-import { createShuffledIdLabelMapFunction } from './BBS/labelMap.js'
+import { createShuffledIdLabelMapFunction } from './lib/labelMaps.js'
 import jsonld from "jsonld";
 import { sha256 } from "@noble/hashes/sha256";
 import { ml_dsa44 } from "@noble/post-quantum/ml-dsa.js";
 import { slh_dsa_sha2_128s } from "@noble/post-quantum/slh-dsa.js";
 import { falcon512padded } from "@noble/post-quantum/falcon.js";
-import { localLoader } from "./documentLoader.js";
+import { localLoader } from "./lib/documentLoader.js";
 import { bytesToHex, concatBytes } from "@noble/hashes/utils";
-import { decode as decodeCbor } from "cbor2";
 import { base64url } from "multiformats/bases/base64";
 
 // Helper function for array equality
@@ -64,24 +64,8 @@ for (let test of testCases) {
   // parseBaseProofValue:
   const proof = document.proof;
   delete document.proof; // IMPORTANT: all work uses document without proof
-  const proofValue = proof.proofValue; // base64url encoded
-  const proofValueBytes = base64url.decode(proofValue);
-  // console.log(proofValueBytes.length);
-  // check header bytes are: 0xd9, 0x5d, and 0x10
-  if (
-    proofValueBytes[0] !== 0xd9 ||
-    proofValueBytes[1] !== 0x5d ||
-    proofValueBytes[2] !== 0x10
-  ) {
-    throw new Error("Invalid proofValue header");
-  }
-  const decodeThing = decodeCbor(proofValueBytes.slice(3));
-  if (decodeThing.length !== 5) {
-    throw new Error("Bad length of CBOR decoded proofValue data");
-  }
-  // console.log(decodeThing);
-  const [signature, hmacKey, salts, saltedHashes, mandatoryPointers] =
-    decodeThing;
+  const { signature, hmacKey, salts, saltedHashes, mandatoryPointers } =
+    parseBaseProofValue(proof.proofValue);
 
   // check we got the salts  and  saltedHashes
   // let saltedHashInfo = {

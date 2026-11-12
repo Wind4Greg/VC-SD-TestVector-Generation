@@ -11,7 +11,7 @@ import { repoPath } from '../lib/paths.js'
 import { readFile, writeFile } from 'fs/promises'
 import { createHmac, hmacIdCanonize } from '@digitalbazaar/di-sd-primitives'
 import jsonld from 'jsonld'
-import { localLoader } from '../documentLoader.js'
+import { localLoader } from '../lib/documentLoader.js'
 import { bytesToHex, concatBytes, hexToBytes } from '@noble/hashes/utils'
 
 jsonld.documentLoader = localLoader // Local loader for JSON-LD

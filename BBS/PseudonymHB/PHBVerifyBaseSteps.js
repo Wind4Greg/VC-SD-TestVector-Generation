@@ -8,10 +8,10 @@ import { klona } from 'klona'
 import {
   createHmac, canonicalizeAndGroup
 } from '@digitalbazaar/di-sd-primitives'
-import { createShuffledIdLabelMapFunction } from '../labelMap.js'
+import { createShuffledIdLabelMapFunction } from '../../lib/labelMaps.js'
 import jsonld from 'jsonld'
 import { sha256 } from '@noble/hashes/sha256'
-import { localLoader } from '../../documentLoader.js'
+import { localLoader } from '../../lib/documentLoader.js'
 import { bytesToHex, concatBytes, hexToBytes } from '@noble/hashes/utils'
 import { base58btc } from 'multiformats/bases/base58'
 import { decode as decodeCbor } from 'cbor2'

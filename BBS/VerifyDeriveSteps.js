@@ -4,17 +4,17 @@
 */
 
 import { repoPath } from '../lib/paths.js';
+import { parseDerivedProofValue } from './proofValue.js';
 import { selectExamples } from '../lib/examples.js';
-import {createVerifyData} from '../CommonAlgs.js';
+import {createVerifyData} from '../lib/sdCommon.js';
 import { mkdir, readFile, writeFile } from 'fs/promises'
 import { createLabelMapFunction, labelReplacementCanonicalizeJsonLd } from '@digitalbazaar/di-sd-primitives'
 import jsonld from 'jsonld'
-import { localLoader } from '../documentLoader.js'
+import { localLoader } from '../lib/documentLoader.js'
 import { sha256 } from '@noble/hashes/sha256'
 import { bytesToHex, concatBytes } from '@noble/hashes/utils'
 import { klona } from 'klona'
 import { base58btc } from 'multiformats/bases/base58'
-import { decode as decodeCbor } from 'cbor2'
 import { base64url } from 'multiformats/bases/base64'
 import { API_ID_BBS_SHA, messages_to_scalars as msgsToScalars,
   prepareGenerators, numUndisclosed, proofVerify } from './lib/BBS.js'
@@ -50,37 +50,9 @@ async function verifyExample (baseDir) {
   const proofValue = proof.proofValue
 
   // **Parse Derived Proof Value BBS** [bbsProof, compressLabelMap, adjMandatoryIndexes, adjSelectiveIndexes]
-  if (!proofValue.startsWith('u')) {
-    throw new Error('proofValue not a valid multibase-64-url encoding')
-  }
-  const decodedProofValue = base64url.decode(proofValue)
-  // check header bytes
-  if (decodedProofValue[0] !== 0xd9 || decodedProofValue[1] !== 0x5d || decodedProofValue[2] !== 0x03) {
-    throw new Error('Invalid proofValue header')
-  }
-  const decodeThing = decodeCbor(decodedProofValue.slice(3))
-  if (decodeThing.length !== 5) {
-    throw new Error('Bad length of CBOR decoded proofValue data')
-  }
-  const [bbsProof, labelMapCompressed, mandatoryIndexes, adjSelectedIndexes, presentationHeader] = decodeThing
-
-  if (!(labelMapCompressed instanceof Map)) {
-    throw new Error('Bad label map in proofValue')
-  }
-  // Modified for **BBS** labeling, just an integer
-  labelMapCompressed.forEach(function (value, key) {
-    if (!Number.isInteger(key) || !Number.isInteger(value)) {
-      throw new Error('Bad key or value in compress label map in proofValue')
-    }
-  })
-  if (!Array.isArray(mandatoryIndexes)) {
-    throw new Error('mandatory indexes is not an array in proofValue')
-  }
-  mandatoryIndexes.forEach(value => {
-    if (!Number.isInteger(value)) {
-      throw new Error('Value in mandatory indexes  is not an integer')
-    }
-  })
+  // Checks the header and that the components have the expected types
+  const { bbsProof, compressedLabelMap: labelMapCompressed, mandatoryIndexes,
+    selectiveIndexes: adjSelectedIndexes, presentationHeader } = parseDerivedProofValue(proofValue)
 
   // get additional verify data
   const {proofHash, mandatoryHash, nonMandatory} = await createVerifyData(document, labelMapCompressed, mandatoryIndexes);

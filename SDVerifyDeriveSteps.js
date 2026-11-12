@@ -9,18 +9,18 @@
     Key initialization step: [3.4.9 createVerifyData](https://w3c.github.io/vc-di-ecdsa/#createverifydata)
 */
 import { repoPath } from './lib/paths.js';
+import { parseDerivedProofValue } from './sic/proofValue.js';
 import { selectExamples } from './lib/examples.js';
-import {createVerifyData} from './CommonAlgs.js';
+import {createVerifyData} from './lib/sdCommon.js';
 import { mkdir, readFile, writeFile } from 'fs/promises'
 import { createLabelMapFunction, labelReplacementCanonicalizeJsonLd } from '@digitalbazaar/di-sd-primitives'
 import jsonld from 'jsonld'
-import { localLoader } from './documentLoader.js'
+import { localLoader } from './lib/documentLoader.js'
 import { sha256 } from '@noble/hashes/sha256'
 import { bytesToHex, concatBytes, hexToBytes } from '@noble/hashes/utils'
 import { p256 } from '@noble/curves/p256'
 import { klona } from 'klona'
 import { base58btc } from 'multiformats/bases/base58'
-import { decode as decodeCbor} from 'cbor2'
 import { base64url } from 'multiformats/bases/base64'
 
 // Output directory for each supported example; choose examples with --example
@@ -53,56 +53,10 @@ async function verifyExample (baseDir) {
   const proof = document.proof
   const proofValue = proof.proofValue
 
-  if (!proofValue.startsWith('u')) {
-    throw new Error('proofValue not a valid multibase-64-url encoding')
-  }
-  const decodedProofValue = base64url.decode(proofValue)
-  // check header bytes are: 0xd9, 0x5d, and 0x01
-  if (decodedProofValue[0] !== 0xd9 || decodedProofValue[1] !== 0x5d || decodedProofValue[2] !== 0x01) {
-    throw new Error('Invalid proofValue header')
-  }
-  const decodeThing = decodeCbor(decodedProofValue.slice(3))
-  /* Ensure the result is an array of five elements.
-        Ensure the result is an array of five elements: a byte array of length 64, a byte array of
-        length 36, an array of byte arrays, each of length 64, a map of integers to byte arrays of
-        length 32, and an array of integers, throwing an error if not.
-  */
-  /* **CAUTION** publicKey is currently encoded in raw bytes with multi-key byte
-      header. For a total length of 35 bytes.
-  */
-  if (decodeThing.length !== 5) {
-    throw new Error('Bad length of CBOR decoded proofValue data')
-  }
-  let [baseSignature, publicKey, signatures, labelMapCompressed, mandatoryIndexes] = decodeThing
-  // console.log(baseSignature, typeof baseSignature);
-  if (!baseSignature.BYTES_PER_ELEMENT === 1 && baseSignature.length === 64) {
-    throw new Error('Bad baseSignature in proofValue')
-  }
+  // Checks the header and that the components have the expected types and sizes
+  let { baseSignature, publicKey, signatures, compressedLabelMap: labelMapCompressed, mandatoryIndexes } =
+    parseDerivedProofValue(proofValue)
   publicKey = new Uint8Array(publicKey) // Just to make sure convert into byte array
-  if (!Array.isArray(signatures)) {
-    throw new Error('signatures in proof value is not an array')
-  }
-  signatures.forEach(function (value) {
-    if (!value.BYTES_PER_ELEMENT === 1 && value.length === 64) {
-      throw new Error('Bad signature in signatures array in proofValue')
-    }
-  })
-  if (!(labelMapCompressed instanceof Map)) {
-    throw new Error('Bad label map in proofValue')
-  }
-  labelMapCompressed.forEach(function (value, key) {
-    if (!Number.isInteger(key) || value.length !== 32) {
-      throw new Error('Bad key or value in compress label map in proofValue')
-    }
-  })
-  if (!Array.isArray(mandatoryIndexes)) {
-    throw new Error('mandatory indexes is not an array in proofValue')
-  }
-  mandatoryIndexes.forEach(value => {
-    if (!Number.isInteger(value)) {
-      throw new Error('Value in mandatory indexes  is not an integer')
-    }
-  })
 
   // get additional verify data
   const {proofHash, mandatoryHash, nonMandatory} = await createVerifyData(document, labelMapCompressed, mandatoryIndexes, true);

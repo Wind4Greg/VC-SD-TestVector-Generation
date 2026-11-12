@@ -13,11 +13,12 @@
 */
 
 import { repoPath } from './lib/paths.js';
+import { serializeBaseProofValue } from './shoc/proofValue.js';
 import { examples, selectExamples } from './lib/examples.js';
-import { hashingSD, proofConfigCanon, saltedHashingSD, transformSD} from './CommonAlgs.js'
+import { hashingSD, proofConfigCanon, saltedHashingSD, transformSD} from './lib/sdCommon.js'
 import { mkdir, readFile, writeFile } from "fs/promises";
 import jsonld from "jsonld";
-import { localLoader } from "./documentLoader.js";
+import { localLoader } from "./lib/documentLoader.js";
 import { sha256 } from "@noble/hashes/sha256";
 import { hmac } from "@noble/hashes/hmac";
 import { bytesToHex, concatBytes, hexToBytes } from "@noble/hashes/utils";
@@ -25,7 +26,6 @@ import { ml_dsa44 } from "@noble/post-quantum/ml-dsa.js";
 import { slh_dsa_sha2_128s } from "@noble/post-quantum/slh-dsa.js";
 import { falcon512padded } from "@noble/post-quantum/falcon.js";
 import { klona } from "klona";
-import { encode as encodeCbor } from "cbor2";
 import { base64url } from "multiformats/bases/base64";
 
 // For serialization of JavaScript Map via JSON
@@ -213,19 +213,11 @@ for (const test of testCases) {
   //  string starting with "u" and ending with the base64url-no-pad-encoded value of proofValue.
   // Return baseProof as base proof.
   // */
-  let proofValue = new Uint8Array([0xd9, 0x5d, 0x10]); // Header value from spec
   console.log(salts);
   console.log(saltedHashes);
-  const components = [
-    signature,
-    hmacKey,
-    salts,
-    saltedHashes,
-    mandatoryPointers,
-  ];
-  const cborThing = encodeCbor(components);
-  proofValue = concatBytes(proofValue, cborThing);
-  const baseProof = base64url.encode(proofValue);
+  const baseProof = serializeBaseProofValue({
+    signature, hmacKey, salts, saltedHashes, mandatoryPointers,
+  });
   // console.log(baseProof)
   console.log(`Length of baseProof is ${baseProof.length} characters`);
 

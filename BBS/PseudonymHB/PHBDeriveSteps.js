@@ -8,10 +8,10 @@ import {
   createHmac, canonicalizeAndGroup, selectJsonLd,
   canonicalize, stripBlankNodePrefixes
 } from '@digitalbazaar/di-sd-primitives'
-import { createShuffledIdLabelMapFunction } from '../labelMap.js'
+import { createShuffledIdLabelMapFunction } from '../../lib/labelMaps.js'
 import jsonld from 'jsonld'
 import { klona } from 'klona'
-import { localLoader } from '../../documentLoader.js'
+import { localLoader } from '../../lib/documentLoader.js'
 import { bytesToHex, concatBytes, hexToBytes } from '@noble/hashes/utils'
 import { base58btc } from 'multiformats/bases/base58'
 import { decode as decodeCbor, encode as encodeCbor } from 'cbor2'

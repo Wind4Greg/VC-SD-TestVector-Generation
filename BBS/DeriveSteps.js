@@ -13,15 +13,15 @@ To come up with Derived Proof for BBS we need:
 */
 
 import { repoPath } from '../lib/paths.js';
+import { parseBaseProofValue, serializeDerivedProofValue } from './proofValue.js';
 import { examples, selectExamples } from '../lib/examples.js';
 import { mkdir, readFile, writeFile } from 'fs/promises'
-import {createDisclosureData} from '../CommonAlgs.js';
+import {createDisclosureData} from '../lib/sdCommon.js';
 import jsonld from 'jsonld'
 import { klona } from 'klona'
-import { localLoader } from '../documentLoader.js'
+import { localLoader } from '../lib/documentLoader.js'
 import { bytesToHex, concatBytes, hexToBytes } from '@noble/hashes/utils'
 import { base58btc } from 'multiformats/bases/base58'
-import { decode as decodeCbor, encode as encodeCbor } from 'cbor2'
 import { sha256 } from '@noble/hashes/sha256'
 import { base64url } from 'multiformats/bases/base64'
 import {
@@ -79,19 +79,8 @@ async function generate (example, baseDir) {
   // **parse Base Proof Value**
   const proof = document.proof
   delete document.proof // IMPORTANT: all work uses document without proof
-  const proofValue = proof.proofValue // base64url encoded
-  const proofValueBytes = base64url.decode(proofValue)
-  // console.log(proofValueBytes.length);
-  // check header bytes are: 0xd9, 0x5d, and 0x00
-  if (proofValueBytes[0] !== 0xd9 || proofValueBytes[1] !== 0x5d || proofValueBytes[2] !== 0x02) {
-    throw new Error('Invalid proofValue header')
-  }
-  const decodeThing = decodeCbor(proofValueBytes.slice(3))
-
-  if (decodeThing.length !== 5) {
-    throw new Error('Bad length of CBOR decoded proofValue data')
-  }
-  const [bbsSignature, bbsHeaderBase, publicKey, hmacKey, mandatoryPointers] = decodeThing
+  const { bbsSignature, bbsHeader: bbsHeaderBase, publicKey, hmacKey, mandatoryPointers } =
+    parseBaseProofValue(proof.proofValue)
   const baseProofData = {
     bbsSignature: bytesToHex(bbsSignature),
     hmacKey: bytesToHex(hmacKey),
@@ -156,18 +145,11 @@ async function generate (example, baseDir) {
   // Initialize newProof to a shallow copy of proof.
   const newProof = Object.assign({}, proof)
   // Modified for **BBS** unlinkable labeling
-  const compressLabelMap = new Map()
-  verifierLabelMap.forEach(function (v, k) {
-    const key = parseInt(k.split('c14n')[1])
-    const value = parseInt(v.split('b')[1])
-    compressLabelMap.set(key, value)
-  })
 
-  let derivedProofValue = new Uint8Array([0xd9, 0x5d, 0x03])
-  const components = [bbsProof, compressLabelMap, mandatoryIndexes, selectiveIndexes, ph]
-  const cborThing = encodeCbor(components)
-  derivedProofValue = concatBytes(derivedProofValue, cborThing)
-  const derivedProofValueString = base64url.encode(derivedProofValue)
+
+  const derivedProofValueString = serializeDerivedProofValue({
+    bbsProof, labelMap: verifierLabelMap, mandatoryIndexes, selectiveIndexes, presentationHeader: ph
+  })
   console.log(derivedProofValueString)
   console.log(`Length of derivedProofValue is ${derivedProofValueString.length} characters`)
   newProof.proofValue = derivedProofValueString

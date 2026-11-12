@@ -2,6 +2,7 @@
     Walking through the steps for verifying a base SD proof.
 */
 import { repoPath } from './lib/paths.js'
+import { parseBaseProofValue } from './sic/proofValue.js'
 import { selectExamples } from './lib/examples.js'
 import { mkdir, readFile } from 'fs/promises'
 import { klona } from 'klona'
@@ -11,10 +12,9 @@ import {
 import jsonld from 'jsonld'
 import { sha256 } from '@noble/hashes/sha256'
 import { p256 } from '@noble/curves/p256'
-import { localLoader } from './documentLoader.js'
+import { localLoader } from './lib/documentLoader.js'
 import { bytesToHex, concatBytes } from '@noble/hashes/utils'
 import { base58btc } from 'multiformats/bases/base58'
-import { decode as decodeCbor } from 'cbor2'
 import { base64url } from 'multiformats/bases/base64'
 
 // Output directory for each supported example; choose examples with --example
@@ -46,18 +46,8 @@ async function verifyExample (baseDir) {
   // parseBaseProofValue:
   const proof = document.proof
   delete document.proof // IMPORTANT: all work uses document without proof
-  const proofValue = proof.proofValue // base64url encoded
-  const proofValueBytes = base64url.decode(proofValue)
-  // console.log(proofValueBytes.length);
-  // check header bytes are: 0xd9, 0x5d, and 0x00
-  if (proofValueBytes[0] !== 0xd9 || proofValueBytes[1] !== 0x5d || proofValueBytes[2] !== 0x00) {
-    throw new Error('Invalid proofValue header')
-  }
-  const decodeThing = decodeCbor(proofValueBytes.slice(3))
-  if (decodeThing.length !== 5) {
-    throw new Error('Bad length of CBOR decoded proofValue data')
-  }
-  const [baseSignature, proofPublicKey, hmacKey, signatures, mandatoryPointers] = decodeThing
+  const { baseSignature, publicKey: proofPublicKey, hmacKey, signatures, mandatoryPointers } =
+    parseBaseProofValue(proof.proofValue)
   // setup HMAC stuff
   const hmac = await createHmac({ key: hmacKey })
   const labelMapFactoryFunction = createHmacIdLabelMapFunction({ hmac })

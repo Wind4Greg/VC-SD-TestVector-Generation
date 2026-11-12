@@ -5,17 +5,17 @@
     Key initialization step: [3.4.9 createVerifyData](https://w3c.github.io/vc-di-ecdsa/#createverifydata)
 */
 import { repoPath } from './lib/paths.js';
-import {createVerifyData} from './CommonAlgs.js';
+import { parseDerivedProofValue } from './shoc/proofValue.js';
+import {createVerifyData} from './lib/sdCommon.js';
 import { mkdir, readFile, writeFile } from "fs/promises";
 import jsonld from "jsonld";
-import { localLoader } from "./documentLoader.js";
+import { localLoader } from "./lib/documentLoader.js";
 import { sha256 } from "@noble/hashes/sha256";
 import { bytesToHex, concatBytes, hexToBytes } from "@noble/hashes/utils";
 import { ml_dsa44 } from "@noble/post-quantum/ml-dsa.js";
 import { slh_dsa_sha2_128s } from "@noble/post-quantum/slh-dsa.js";
 import { falcon512padded } from "@noble/post-quantum/falcon.js";
 import { klona } from "klona";
-import { decode as decodeCbor } from "cbor2";
 import { base64url } from "multiformats/bases/base64";
 
 jsonld.documentLoader = localLoader; // Local loader for JSON-LD
@@ -69,50 +69,9 @@ for (const test of testCases) {
   
   //  **Parse Derived Proof Value**
 
-  if (!proofValue.startsWith("u")) {
-    throw new Error("proofValue not a valid multibase-64-url encoding");
-  }
-  const decodedProofValue = base64url.decode(proofValue);
-  // check header bytes are: 0xd9, 0x5d, and 0x11
-  if (
-    decodedProofValue[0] !== 0xd9 ||
-    decodedProofValue[1] !== 0x5d ||
-    decodedProofValue[2] !== 0x11
-  ) {
-    throw new Error("Invalid proofValue header");
-  }
-  const decodeThing = decodeCbor(decodedProofValue.slice(3));
-  if (decodeThing.length !== 6) {
-    throw new Error("Bad length of CBOR decoded proofValue data");
-  }
-  // console.log(decodeThing);
-  let [
-    signature,
-    salts,
-    saltedHashes,
-    labelMapCompressed,
-    mandatoryIndexes,
-    selectiveIndexes,
-  ] = decodeThing;
-
-  if (!(labelMapCompressed instanceof Map)) {
-    throw new Error("Bad label map in proofValue");
-  }
-  // Using shuffle labeling, just an integer
-  labelMapCompressed.forEach(function (value, key) {
-    if (!Number.isInteger(key) || !Number.isInteger(value)) {
-      throw new Error('Bad key or value in compress label map in proofValue')
-    }
-  })
-
-  if (!Array.isArray(mandatoryIndexes)) {
-    throw new Error("mandatory indexes is not an array in proofValue");
-  }
-  mandatoryIndexes.forEach((value) => {
-    if (!Number.isInteger(value)) {
-      throw new Error("Value in mandatory indexes  is not an integer");
-    }
-  });
+  // Checks the header and that the components have the expected types
+  let { signature, salts, saltedHashes, compressedLabelMap: labelMapCompressed,
+    mandatoryIndexes, selectiveIndexes } = parseDerivedProofValue(proofValue);
   
 
   // get additional verify data
