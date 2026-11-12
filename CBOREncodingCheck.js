@@ -2,6 +2,7 @@
     Different CBOR libraries produce different outputs due to tagging Uint8Arrays.
     Seeing if we can turn it off and if outputs are the same.
 */
+import { repoPath } from './lib/paths.js'
 import { readFile } from 'fs/promises'
 import cbor from 'cbor'
 import { encode } from 'cborg'
@@ -10,7 +11,7 @@ import { bytesToHex, hexToBytes } from '@noble/hashes/utils'
 import { encode as encode2 } from 'cbor2'
 
 const data = JSON.parse(
-  await readFile(new URL('./input/cborCheckInput.json', import.meta.url)))
+  await readFile(repoPath('input/cborCheckInput.json')))
 const baseSignature = hexToBytes(data.baseSignature)
 const hmacKey = hexToBytes(data.hmacKeyString)
 const signatures = data.signatures.map(sigHex => hexToBytes(sigHex))

@@ -4,23 +4,24 @@
 
 */
 
+import { repoPath } from './lib/paths.js'
 import { mkdir, readFile, writeFile } from 'fs/promises'
 import jsPointer from 'json-pointer'
 // Set input file and output directory here
 // const dirsAndFiles = {
-//   outputDir: './output/ecdsa-sd-2023/',
-//   inputFile: './input/windDoc.json',
-//   mandatoryFile: './input/windMandatory.json'
+//   outputDir: repoPath('output/ecdsa-sd-2023/'),
+//   inputFile: repoPath('input/windDoc.json'),
+//   mandatoryFile: repoPath('input/windMandatory.json')
 // }
 const dirsAndFiles = {
-  outputDir: './output/ecdsa-sd-2023/employ/',
-  inputFile: './input/employmentAuth.json',
-  mandatoryFile: './input/employMandatory.json'
+  outputDir: repoPath('output/ecdsa-sd-2023/employ/'),
+  inputFile: repoPath('input/employmentAuth.json'),
+  mandatoryFile: repoPath('input/employMandatory.json')
 }
 // const dirsAndFiles = {
-//   outputDir: './output/ecdsa-sd-2023/prc/',
-//   inputFile: './input/prCredUnsigned.json',
-//   mandatoryFile: './input/prCredMandatory.json'
+//   outputDir: repoPath('output/ecdsa-sd-2023/prc/'),
+//   inputFile: repoPath('input/prCredUnsigned.json'),
+//   mandatoryFile: repoPath('input/prCredMandatory.json')
 // }
 // Create output directory for the test vectors
 const baseDir = dirsAndFiles.outputDir
@@ -29,13 +30,13 @@ const status = await mkdir(baseDir, { recursive: true })
 // Read input document from a file or just specify it right here.
 const document = JSON.parse(
   await readFile(
-    new URL(dirsAndFiles.inputFile, import.meta.url)
+    dirsAndFiles.inputFile
   )
 )
 
 const pointers = JSON.parse(
   await readFile(
-    new URL(dirsAndFiles.mandatoryFile, import.meta.url)
+    dirsAndFiles.mandatoryFile
   )
 )
 

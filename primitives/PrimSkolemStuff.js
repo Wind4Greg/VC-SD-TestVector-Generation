@@ -7,13 +7,14 @@
     async function labelReplacementCanonicalizeNQuads({nquads, labelMapFactoryFunction, options})
 */
 
+import { repoPath } from '../lib/paths.js'
 import { readFile, writeFile } from 'fs/promises'
 import {
   skolemizeCompactJsonLd, toDeskolemizedNQuads, createHmac,
   createHmacIdLabelMapFunction, labelReplacementCanonicalizeNQuads
 } from '@digitalbazaar/di-sd-primitives'
 import jsonld from 'jsonld'
-import { localLoader } from './documentLoader.js'
+import { localLoader } from '../documentLoader.js'
 import { bytesToHex, concatBytes, hexToBytes } from '@noble/hashes/utils'
 
 jsonld.documentLoader = localLoader // Local loader for JSON-LD
@@ -21,7 +22,7 @@ jsonld.documentLoader = localLoader // Local loader for JSON-LD
 // Read input document from a file or just specify it right here.
 const document = JSON.parse(
   await readFile(
-    new URL('./input/windDoc.json', import.meta.url)
+    repoPath('input/windDoc.json')
   )
 )
 

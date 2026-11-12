@@ -2,23 +2,24 @@
     Walking through the steps for producing a commitment with proof
     for a *proverNym* for use in Pseudonym feature.
 */
+import { repoPath } from '../../lib/paths.js'
 import { mkdir, readFile, writeFile } from 'fs/promises'
 import { API_ID_PSEUDONYM_BBS_SHA, hexToBytes, bytesToHex, numberToHex } from '../lib/BBS.js'
 import {NymCommit} from '../lib/PseudonymBBS.js'
 
 // Create output directory for the test vectors
-const baseDir = '../output/bbs/PseudonymHB/'
+const baseDir = repoPath('BBS/output/bbs/PseudonymHB/')
 await mkdir(baseDir, { recursive: true })
 // Get holder secret bytes
 const holderInfo = JSON.parse(
-  await readFile(new URL('../../input/holderSecret.json', import.meta.url)))
+  await readFile(repoPath('input/holderSecret.json')))
 console.log(holderInfo.holderSecretHex)
 const holderSecret = hexToBytes(holderInfo.holderSecretHex)
 // console.log('holder secret:')
 // console.log(holderSecret)
 // Get proverNym scalar
 const proverInfo = JSON.parse(
-  await readFile(new URL('../../input/proverNym.json', import.meta.url)))
+  await readFile(repoPath('input/proverNym.json')))
 console.log(proverInfo.proverNymHex)
 const proverNym = BigInt('0x' + proverInfo.proverNymHex)
 // NymCommit(messages, prover_nym, api_id, rand_scalars = calculate_random_scalars)

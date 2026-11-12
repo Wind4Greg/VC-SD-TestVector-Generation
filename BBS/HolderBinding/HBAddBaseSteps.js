@@ -3,6 +3,7 @@
     a base BBS proof with the Anonymous Holder Binding feature.
 */
 
+import { repoPath } from '../../lib/paths.js'
 import { mkdir, readFile, writeFile } from 'fs/promises'
 import { createHmac, canonicalizeAndGroup } from '@digitalbazaar/di-sd-primitives'
 import { createShuffledIdLabelMapFunction } from '../labelMap.js'
@@ -29,18 +30,18 @@ function replacerMap (key, value) { // See https://stackoverflow.com/questions/2
 }
 
 // Create output directory for the test vectors
-const baseDir = '../output/bbs/HolderBinding/'
-const inputDir = '../../input/'
+const baseDir = repoPath('BBS/output/bbs/HolderBinding/')
+const inputDir = repoPath('input/')
 await mkdir(baseDir, { recursive: true })
 
 jsonld.documentLoader = localLoader // Local loader for JSON-LD
 
 // Read input document from a file
 const document = JSON.parse(
-  await readFile(new URL(inputDir + 'license.json', import.meta.url)))
+  await readFile(inputDir + 'license.json'))
 // Get commitment with proof from a file
 const commitInfo = JSON.parse(
-  await readFile(new URL(baseDir + 'commitmentInfo.json', import.meta.url)))
+  await readFile(baseDir + 'commitmentInfo.json'))
 const commitmentWithProof = hexToBytes(commitInfo.commitmentWithProof)
 
 // Zeroth step validate the commitment with proof...
@@ -54,7 +55,7 @@ try {
 
 // Obtain key material and process into byte array format
 const keyMaterial = JSON.parse(
-  await readFile(new URL(inputDir + 'BBSKeyMaterial.json', import.meta.url)))
+  await readFile(inputDir + 'BBSKeyMaterial.json'))
 // HMAC/PRF key material -- Shared between issuer and holder
 const hmacKeyString = keyMaterial.hmacKeyString
 const hmacKey = hexToBytes(hmacKeyString)
@@ -85,7 +86,7 @@ const labelMapFactoryFunction = createShuffledIdLabelMapFunction({ hmac: hmacFun
 
 const mandatoryPointers = JSON.parse(
   await readFile(
-    new URL(inputDir + 'licenseMandatory.json', import.meta.url)
+    inputDir + 'licenseMandatory.json'
   )
 )
 const groups = { mandatory: mandatoryPointers }

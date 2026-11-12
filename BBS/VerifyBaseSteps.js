@@ -1,6 +1,7 @@
 /*
     Walking through the steps for verifying a base BBS proof.
 */
+import { repoPath } from '../lib/paths.js'
 import { mkdir, readFile } from 'fs/promises'
 import { klona } from 'klona'
 import {
@@ -17,7 +18,7 @@ import { base64url } from 'multiformats/bases/base64'
 import { API_ID_BBS_SHA, messages_to_scalars as msgsToScalars, prepareGenerators, verify } from './lib/BBS.js'
 
 // Create output directory for the test vectors
-const baseDir = './output/bbs/prc/' // './output/bbs/'
+const baseDir = repoPath('BBS/output/bbs/prc/') // repoPath('BBS/output/bbs/')
 await mkdir(baseDir, { recursive: true })
 
 jsonld.documentLoader = localLoader // Local loader for JSON-LD
@@ -25,7 +26,7 @@ jsonld.documentLoader = localLoader // Local loader for JSON-LD
 // Read base signed document from a file
 const document = JSON.parse(
   await readFile(
-    new URL(baseDir + 'addSignedSDBase.json', import.meta.url)
+    baseDir + 'addSignedSDBase.json'
   )
 )
 

@@ -12,6 +12,7 @@
 
 */
 
+import { repoPath } from './lib/paths.js';
 import { hashingSD, proofConfigCanon, saltedHashingSD, transformSD} from './CommonAlgs.js'
 import { mkdir, readFile, writeFile } from "fs/promises";
 import jsonld from "jsonld";
@@ -44,9 +45,9 @@ const utf8encoder = new TextEncoder(); // To convert utf8 text to Uint8Array
 
 // Set input file and output directory here
 const dirsAndFiles = {
-  outputDir: "./output/pqc-sd/", // For outputs across different signature schemes
-  inputFile: "./input/employmentAuth.json",
-  mandatoryFile: "./input/employMandatory.json",
+  outputDir: repoPath('output/pqc-sd/'), // For outputs across different signature schemes
+  inputFile: repoPath('input/employmentAuth.json'),
+  mandatoryFile: repoPath('input/employMandatory.json'),
 };
 
 // Create output directory for the test vectors
@@ -55,21 +56,21 @@ await mkdir(baseDir, { recursive: true });
 
 // HMAC/PRF key material -- Shared between issuer and holder
 const keyMaterialHMAC = JSON.parse(
-  await readFile(new URL("./input/HMACKey.json", import.meta.url)),
+  await readFile(repoPath('input/HMACKey.json')),
 );
 const hmacKeyString = keyMaterialHMAC.hmacKeyString;
 const hmacKey = hexToBytes(hmacKeyString);
 
 // Read input document from a file
 const document = JSON.parse(
-  await readFile(new URL(dirsAndFiles.inputFile, import.meta.url)),
+  await readFile(dirsAndFiles.inputFile),
 );
 
 
 // **Transformation Step**
 
 const mandatoryPointers = JSON.parse(
-  await readFile(new URL(dirsAndFiles.mandatoryFile, import.meta.url)),
+  await readFile(dirsAndFiles.mandatoryFile),
 );
 
 // General SD transform, note  true ==> legacy ECDSA-SD label map
@@ -111,22 +112,22 @@ writeFile(
 
 const testCases = [
   {
-    outputDir: "./output/mldsa44-sd-2024/",
-    keyFile: "./input/KeysMLDSA.json",
+    outputDir: repoPath('output/mldsa44-sd-2024/'),
+    keyFile: repoPath('input/KeysMLDSA.json'),
     keyName: "mldsa44",
     suiteName: "mldsa44-sd-2024",
     sigAlg: ml_dsa44,
   },
   {
-    outputDir: "./output/slhdsa128-sd-2024/",
-    keyFile: "./input/KeysSLHDSA.json",
+    outputDir: repoPath('output/slhdsa128-sd-2024/'),
+    keyFile: repoPath('input/KeysSLHDSA.json'),
     keyName: "slh128s",
     suiteName: "slhdsa128-sd-2024",
     sigAlg: slh_dsa_sha2_128s,
   },
   {
-    outputDir: "./output/falcon512-sd-2024/",
-    keyFile: "./input/KeysFALCON.json",
+    outputDir: repoPath('output/falcon512-sd-2024/'),
+    keyFile: repoPath('input/KeysFALCON.json'),
     keyName: "falcon512",
     suiteName: "falcon512-sd-2024",
     sigAlg: falcon512padded,
@@ -139,7 +140,7 @@ for (const test of testCases) {
   await mkdir(baseDir, { recursive: true });
   // Obtain key material and process into byte array format
   const keyMaterial = JSON.parse(
-    await readFile(new URL(test.keyFile, import.meta.url)),
+    await readFile(test.keyFile),
   );
   // **Proof Configuration Options**
   // Set proof options per draft

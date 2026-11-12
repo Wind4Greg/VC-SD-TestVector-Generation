@@ -4,6 +4,7 @@
     level steps are *transformation*, *hashing*, and *serialization*.
 */
 
+import { repoPath } from './lib/paths.js'
 import { hashingSD, proofConfigCanon, transformSD} from './CommonAlgs.js'
 import { mkdir, readFile, writeFile } from 'fs/promises'
 import jsonld from 'jsonld'
@@ -31,19 +32,19 @@ function replacerMap (key, value) { // See https://stackoverflow.com/questions/2
 
 // Set input file and output directory here
 // const dirsAndFiles = {
-//   outputDir: './output/ecdsa-sd-2023/',
-//   inputFile: './input/windDoc.json',
-//   mandatoryFile: './input/windMandatory.json'
+//   outputDir: repoPath('output/ecdsa-sd-2023/'),
+//   inputFile: repoPath('input/windDoc.json'),
+//   mandatoryFile: repoPath('input/windMandatory.json')
 // }
 const dirsAndFiles = {
-  outputDir: './output/ecdsa-sd-2023/employ/',
-  inputFile: './input/employmentAuth.json',
-  mandatoryFile: './input/employMandatory.json'
+  outputDir: repoPath('output/ecdsa-sd-2023/employ/'),
+  inputFile: repoPath('input/employmentAuth.json'),
+  mandatoryFile: repoPath('input/employMandatory.json')
 }
 // const dirsAndFiles = {
-//   outputDir: './output/ecdsa-sd-2023/prc/',
-//   inputFile: './input/prCredUnsigned.json',
-//   mandatoryFile: './input/prCredMandatory.json'
+//   outputDir: repoPath('output/ecdsa-sd-2023/prc/'),
+//   inputFile: repoPath('input/prCredUnsigned.json'),
+//   mandatoryFile: repoPath('input/prCredMandatory.json')
 // }
 
 
@@ -55,11 +56,11 @@ jsonld.documentLoader = localLoader // Local loader for JSON-LD
 
 // Read input document from a file
 const document = JSON.parse(
-  await readFile(new URL(dirsAndFiles.inputFile, import.meta.url)))
+  await readFile(dirsAndFiles.inputFile))
 
 // Obtain key material and process into byte array format
 const keyMaterial = JSON.parse(
-  await readFile(new URL('./input/SDKeyMaterial.json', import.meta.url)))
+  await readFile(repoPath('input/SDKeyMaterial.json')))
 // HMAC/PRF key material -- Shared between issuer and holder
 const hmacKeyString = keyMaterial.hmacKeyString
 const hmacKey = hexToBytes(hmacKeyString)
@@ -96,7 +97,7 @@ writeFile(baseDir + 'addProofConfigCanon.txt', proofCanon)
    "mandatory" and a value of mandatoryPointers. */
 const mandatoryPointers = JSON.parse(
   await readFile(
-    new URL(dirsAndFiles.mandatoryFile, import.meta.url)
+    dirsAndFiles.mandatoryFile
   )
 )
 

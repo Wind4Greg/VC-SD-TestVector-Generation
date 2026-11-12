@@ -11,6 +11,7 @@
     1. [createDisclosureData](https://w3c.github.io/vc-di-ecdsa/#createdisclosuredata)
     2. [serializeDerivedProofValue](https://w3c.github.io/vc-di-ecdsa/#serializederivedproofvalue)
 */
+import { repoPath } from './lib/paths.js';
 import {createDisclosureData} from './CommonAlgs.js';
 import { mkdir, readFile, writeFile } from 'fs/promises'
 import jsonld from 'jsonld'
@@ -32,18 +33,18 @@ function replacerMap (key, value) { // See https://stackoverflow.com/questions/2
 }
 
 // const dirsAndFiles = {
-//   outputDir: './output/ecdsa-sd-2023/',
-//   inputFile: './input/windSelective.json'
+//   outputDir: repoPath('output/ecdsa-sd-2023/'),
+//   inputFile: repoPath('input/windSelective.json')
 // }
 
 const dirsAndFiles = {
-  outputDir: './output/ecdsa-sd-2023/employ/',
-  inputFile: './input/employSelective.json'
+  outputDir: repoPath('output/ecdsa-sd-2023/employ/'),
+  inputFile: repoPath('input/employSelective.json')
 }
 
 // const dirsAndFiles = {
-//   outputDir: './output/ecdsa-sd-2023/prc/',
-//   inputFile: './input/prCredSelective.json'
+//   outputDir: repoPath('output/ecdsa-sd-2023/prc/'),
+//   inputFile: repoPath('input/prCredSelective.json')
 // }
 
 // Create output directory for the test vectors
@@ -54,7 +55,7 @@ await mkdir(baseDir, { recursive: true })
 // reveal all about board 0
 const selectivePointers = JSON.parse(
   await readFile(
-    new URL(dirsAndFiles.inputFile, import.meta.url)
+    dirsAndFiles.inputFile
   )
 )
 
@@ -63,7 +64,7 @@ jsonld.documentLoader = localLoader // Local loader for JSON-LD
 // Read base signed document from a file
 const document = JSON.parse(
   await readFile(
-    new URL(baseDir + 'addSignedSDBase.json', import.meta.url)
+    baseDir + 'addSignedSDBase.json'
   )
 )
 

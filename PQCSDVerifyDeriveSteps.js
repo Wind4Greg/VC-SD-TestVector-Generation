@@ -4,6 +4,7 @@
 
     Key initialization step: [3.4.9 createVerifyData](https://w3c.github.io/vc-di-ecdsa/#createverifydata)
 */
+import { repoPath } from './lib/paths.js';
 import {createVerifyData} from './CommonAlgs.js';
 import { mkdir, readFile, writeFile } from "fs/promises";
 import jsonld from "jsonld";
@@ -33,17 +34,17 @@ function isEqual(arr1, arr2) {
 const testCases = [
   {
     suiteName: "mldsa44-sd-2024",
-    baseDir: "./output/mldsa44-sd-2024/",
+    baseDir: repoPath('output/mldsa44-sd-2024/'),
     sigAlg: ml_dsa44,
   },
   {
     suiteName: "slhdsa128-sd-2024",
-    baseDir: "./output/slhdsa128-sd-2024/",
+    baseDir: repoPath('output/slhdsa128-sd-2024/'),
     sigAlg: slh_dsa_sha2_128s,
   },
   {
     suiteName: "falcon512-sd-2024",
-    baseDir: "./output/falcon512-sd-2024/",
+    baseDir: repoPath('output/falcon512-sd-2024/'),
     sigAlg: falcon512padded,
   },
 ];
@@ -56,7 +57,7 @@ for (const test of testCases) {
   // Read base signed document from a file 'revealDocument.json', 'DBderivedCredential.json'
   const document = JSON.parse(
     await readFile(
-      new URL(baseDir + "derivedRevealDocument.json", import.meta.url),
+      baseDir + "derivedRevealDocument.json",
     ),
   );
 

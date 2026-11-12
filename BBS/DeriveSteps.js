@@ -12,6 +12,7 @@ To come up with Derived Proof for BBS we need:
 
 */
 
+import { repoPath } from '../lib/paths.js';
 import { mkdir, readFile, writeFile } from 'fs/promises'
 import {createDisclosureData} from '../CommonAlgs.js';
 import jsonld from 'jsonld'
@@ -40,17 +41,17 @@ function replacerMap (key, value) { // See https://stackoverflow.com/questions/2
 
 // Obtain presentationHeader and process into byte array format
 const deriveOptions = JSON.parse(
-  await readFile(new URL('../input/BBSDeriveMaterial.json', import.meta.url)))
+  await readFile(repoPath('input/BBSDeriveMaterial.json')))
 const presentationHeader = hexToBytes(deriveOptions.presentationHeaderHex)
 
 // const dirsAndFiles = {
-//   outputDir: './output/bbs/',
-//   inputFile: '../input/windSelective.json'
+//   outputDir: repoPath('BBS/output/bbs/'),
+//   inputFile: repoPath('input/windSelective.json')
 // }
 
 const dirsAndFiles = {
-  outputDir: './output/bbs/prc/',
-  inputFile: '../input/prCredSelective.json'
+  outputDir: repoPath('BBS/output/bbs/prc/'),
+  inputFile: repoPath('input/prCredSelective.json')
 }
 
 // Create output directory for the test vectors
@@ -60,7 +61,7 @@ await mkdir(baseDir, { recursive: true })
 // Get the selective disclosure pointers, either windSelective.json or treeSelective.json
 const selectivePointers = JSON.parse(
   await readFile(
-    new URL(dirsAndFiles.inputFile, import.meta.url)
+    dirsAndFiles.inputFile
   )
 )
 jsonld.documentLoader = localLoader // Local loader for JSON-LD
@@ -68,7 +69,7 @@ jsonld.documentLoader = localLoader // Local loader for JSON-LD
 // Read base signed document from a file
 const document = JSON.parse(
   await readFile(
-    new URL(baseDir + 'addSignedSDBase.json', import.meta.url)
+    baseDir + 'addSignedSDBase.json'
   )
 )
 

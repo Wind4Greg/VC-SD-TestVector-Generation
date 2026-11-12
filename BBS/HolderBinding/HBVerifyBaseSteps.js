@@ -2,6 +2,7 @@
     Walking through the steps for verifying a base BBS proof with Anonymous
     Holder Binding.
 */
+import { repoPath } from '../../lib/paths.js'
 import { mkdir, readFile } from 'fs/promises'
 import { klona } from 'klona'
 import {
@@ -20,25 +21,25 @@ import { BlindVerify } from '../lib/BlindBBS.js'
 import { bytesToNumberBE } from '@noble/curves/abstract/utils'
 
 // Create output directory for the test vectors
-const baseDir = '../output/bbs/HolderBinding/'
-const inputDir = '../../input/'
+const baseDir = repoPath('BBS/output/bbs/HolderBinding/')
+const inputDir = repoPath('input/')
 await mkdir(baseDir, { recursive: true })
 
 jsonld.documentLoader = localLoader // Local loader for JSON-LD
 
 // Get holder secret information
 const holderSecret = JSON.parse(
-  await readFile(new URL(inputDir + 'holderSecret.json', import.meta.url)))
+  await readFile(inputDir + 'holderSecret.json'))
 console.log(holderSecret.holderSecretHex)
 const holderSecretMaterial = hexToBytes(holderSecret.holderSecretHex)
 const commitInfo = JSON.parse(
-  await readFile(new URL(baseDir + 'commitmentInfo.json', import.meta.url)))
+  await readFile(baseDir + 'commitmentInfo.json'))
 const secretProverBlind = BigInt('0x' + commitInfo.secretProverBlind)
 
 // Read base signed document from a file
 const document = JSON.parse(
   await readFile(
-    new URL(baseDir + 'addSignedSDBase.json', import.meta.url)
+    baseDir + 'addSignedSDBase.json'
   )
 )
 

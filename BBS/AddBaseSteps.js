@@ -3,6 +3,7 @@
     a base BBS proof using selective disclosure primitive functions. The higher
     level steps are *transformation*, *hashing*, and *serialization*.
 */
+import { repoPath } from '../lib/paths.js'
 import { hashingSD, proofConfigCanon, transformSD} from '../CommonAlgs.js'
 import { mkdir, readFile, writeFile } from 'fs/promises'
 import jsonld from 'jsonld'
@@ -29,15 +30,15 @@ function replacerMap (key, value) { // See https://stackoverflow.com/questions/2
 
 // Set input file and output directory here
 // const dirsAndFiles = {
-//   outputDir: './output/bbs/',
-//   inputFile: '../input/windDoc.json',
-//   mandatoryFile: '../input/windMandatory.json'
+//   outputDir: repoPath('BBS/output/bbs/'),
+//   inputFile: repoPath('input/windDoc.json'),
+//   mandatoryFile: repoPath('input/windMandatory.json')
 // }
 
 const dirsAndFiles = {
-  outputDir: './output/bbs/prc/',
-  inputFile: '../input/prCredUnsigned.json',
-  mandatoryFile: '../input/prCredMandatory.json'
+  outputDir: repoPath('BBS/output/bbs/prc/'),
+  inputFile: repoPath('input/prCredUnsigned.json'),
+  mandatoryFile: repoPath('input/prCredMandatory.json')
 }
 
 // Create output directory for the test vectors
@@ -48,11 +49,11 @@ jsonld.documentLoader = localLoader // Local loader for JSON-LD
 
 // Read input document from a file either treeDoc.json or windDoc.json
 const document = JSON.parse(
-  await readFile(new URL(dirsAndFiles.inputFile, import.meta.url)))
+  await readFile(dirsAndFiles.inputFile))
 
 // Obtain key material and process into byte array format
 const keyMaterial = JSON.parse(
-  await readFile(new URL('../input/BBSKeyMaterial.json', import.meta.url)))
+  await readFile(repoPath('input/BBSKeyMaterial.json')))
 // HMAC/PRF key material -- Shared between issuer and holder
 const hmacKeyString = keyMaterial.hmacKeyString
 const hmacKey = hexToBytes(hmacKeyString)
@@ -80,7 +81,7 @@ writeFile(baseDir + 'addProofConfigCanon.txt', proofCanon)
 
 const mandatoryPointers = JSON.parse(
   await readFile(
-    new URL(dirsAndFiles.mandatoryFile, import.meta.url)
+    dirsAndFiles.mandatoryFile
   )
 )
 

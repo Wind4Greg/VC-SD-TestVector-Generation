@@ -2,6 +2,7 @@
     Steps for creating a derived proof for the Pseudonym feature.
 */
 
+import { repoPath } from '../../lib/paths.js'
 import { mkdir, readFile, writeFile } from 'fs/promises'
 import {
   createHmac, canonicalizeAndGroup, selectJsonLd,
@@ -33,39 +34,39 @@ function replacerMap (key, value) { // See https://stackoverflow.com/questions/2
 }
 
 // Create output directory for the test vectors
-const baseDir = '../output/bbs/PseudonymHB/'
-const inputDir = '../../input/'
+const baseDir = repoPath('BBS/output/bbs/PseudonymHB/')
+const inputDir = repoPath('input/')
 await mkdir(baseDir, { recursive: true })
 
 // Obtain presentationHeader and process into byte array format
 const deriveOptions = JSON.parse(
-  await readFile(new URL(inputDir + 'BBSDeriveMaterial.json', import.meta.url)))
+  await readFile(inputDir + 'BBSDeriveMaterial.json'))
 const presentationHeader = hexToBytes(deriveOptions.presentationHeaderHex)
 
 // Get prover(holder) secret and nym information
 const holderInfo = JSON.parse(
-  await readFile(new URL('../../input/holderSecret.json', import.meta.url)))
+  await readFile(repoPath('input/holderSecret.json')))
 console.log(holderInfo.holderSecretHex)
 const holderSecret = hexToBytes(holderInfo.holderSecretHex)
 const proverInfo = JSON.parse(
-  await readFile(new URL('../../input/proverNym.json', import.meta.url)))
+  await readFile(repoPath('input/proverNym.json')))
 console.log(proverInfo.proverNymHex)
 const proverNym = BigInt('0x' + proverInfo.proverNymHex)
 console.log(proverInfo.proverNymHex)
 const commitInfo = JSON.parse(
-  await readFile(new URL(baseDir + 'commitmentInfo.json', import.meta.url)))
+  await readFile(baseDir + 'commitmentInfo.json'))
 const secretProverBlind = BigInt('0x' + commitInfo.secretProverBlind)
 
 // Get verifier identifier and generate pseudonym here
 const verifierInfo = JSON.parse(
-  await readFile(new URL(inputDir + 'verifierInfo.json', import.meta.url)))
+  await readFile(inputDir + 'verifierInfo.json'))
 const te = new TextEncoder()
 const nymDomain = te.encode(verifierInfo.nymDomainString) // need as byte array
 
 // Get the selective disclosure pointers
 const selectivePointers = JSON.parse(
   await readFile(
-    new URL(inputDir + 'licenseSelective.json', import.meta.url)
+    inputDir + 'licenseSelective.json'
   )
 )
 jsonld.documentLoader = localLoader // Local loader for JSON-LD
@@ -73,7 +74,7 @@ jsonld.documentLoader = localLoader // Local loader for JSON-LD
 // Read base signed document from a file
 const document = JSON.parse(
   await readFile(
-    new URL(baseDir + 'addSignedSDBase.json', import.meta.url)
+    baseDir + 'addSignedSDBase.json'
   )
 )
 

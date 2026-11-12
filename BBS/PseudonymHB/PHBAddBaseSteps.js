@@ -3,6 +3,7 @@
     a base BBS proof for the Pseudonym and Holder Binding feature.
 */
 
+import { repoPath } from '../../lib/paths.js'
 import { mkdir, readFile, writeFile } from 'fs/promises'
 import { createHmac, canonicalizeAndGroup } from '@digitalbazaar/di-sd-primitives'
 import { createShuffledIdLabelMapFunction } from '../labelMap.js'
@@ -29,23 +30,23 @@ function replacerMap (key, value) { // See https://stackoverflow.com/questions/2
 }
 
 // Create output directory for the test vectors
-const baseDir = '../output/bbs/PseudonymHB/'
-const inputDir = '../../input/'
+const baseDir = repoPath('BBS/output/bbs/PseudonymHB/')
+const inputDir = repoPath('input/')
 await mkdir(baseDir, { recursive: true })
 
 jsonld.documentLoader = localLoader // Local loader for JSON-LD
 
 // Read input document from a file
 const document = JSON.parse(
-  await readFile(new URL(inputDir + 'license.json', import.meta.url)))
+  await readFile(inputDir + 'license.json'))
 // Get commitment with proof from a file
 const commitInfo = JSON.parse(
-  await readFile(new URL(baseDir + 'commitmentInfo.json', import.meta.url)))
+  await readFile(baseDir + 'commitmentInfo.json'))
 const commitmentWithProof = hexToBytes(commitInfo.commitmentWithProof)
 
 // Obtain key material and process into byte array format
 const keyMaterial = JSON.parse(
-  await readFile(new URL(inputDir + 'BBSKeyMaterial.json', import.meta.url)))
+  await readFile(inputDir + 'BBSKeyMaterial.json'))
 // HMAC/PRF key material -- Shared between issuer and holder
 const hmacKeyString = keyMaterial.hmacKeyString
 const hmacKey = hexToBytes(hmacKeyString)
@@ -76,7 +77,7 @@ const labelMapFactoryFunction = createShuffledIdLabelMapFunction({ hmac: hmacFun
 
 const mandatoryPointers = JSON.parse(
   await readFile(
-    new URL(inputDir + 'licenseMandatory.json', import.meta.url)
+    inputDir + 'licenseMandatory.json'
   )
 )
 const groups = { mandatory: mandatoryPointers }
@@ -123,7 +124,7 @@ const bbsMessages = [...nonMandatory.values()].map(txt => te.encode(txt)) // mus
 
 // Read signer nym entropy info from a file
 const signerInfo = JSON.parse(
-  await readFile(new URL(inputDir + 'signerNymEntropy.json', import.meta.url)))
+  await readFile(inputDir + 'signerNymEntropy.json'))
 const signerNymEntropy = BigInt('0x' + signerInfo.signerNymEntropyHex)
 // BlindSignWithNym(SK, PK, commitment_with_proof, header, messages, signer_nym_entropy, api_id)
 const [bbsSignature, temp] = await BlindSignWithNym(privateKey, publicKey, commitmentWithProof,

@@ -4,6 +4,7 @@
 
 */
 
+import { repoPath } from '../../lib/paths.js'
 import { mkdir, readFile, writeFile } from 'fs/promises'
 import { createLabelMapFunction, labelReplacementCanonicalizeJsonLd } from '@digitalbazaar/di-sd-primitives'
 import jsonld from 'jsonld'
@@ -18,21 +19,21 @@ import { API_ID_PSEUDONYM_BBS_SHA } from '../lib/BBS.js'
 import { ProofVerifyWithNym } from '../lib/PseudonymBBS.js'
 
 // Create output directory for the results
-const baseDir = '../output/bbs/PseudonymHB/'
-const inputDir = '../../input/'
+const baseDir = repoPath('BBS/output/bbs/PseudonymHB/')
+const inputDir = repoPath('input/')
 await mkdir(baseDir, { recursive: true })
 
 jsonld.documentLoader = localLoader // Local loader for JSON-LD
 
 // Get verifier identifier and generate pseudonym here
 const verifierInfo = JSON.parse(
-  await readFile(new URL(inputDir + 'verifierInfo.json', import.meta.url)))
+  await readFile(inputDir + 'verifierInfo.json'))
 const te = new TextEncoder()
 const nymDomain = te.encode(verifierInfo.nymDomainString) // need as byte array
 // Read base signed document from a file 'revealDocument.json', 'DBderivedCredential.json'
 const document = JSON.parse(
   await readFile(
-    new URL(baseDir + 'derivedRevealDocument.json', import.meta.url)
+    baseDir + 'derivedRevealDocument.json'
   )
 )
 

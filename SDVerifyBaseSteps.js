@@ -1,6 +1,7 @@
 /*
     Walking through the steps for verifying a base SD proof.
 */
+import { repoPath } from './lib/paths.js'
 import { mkdir, readFile } from 'fs/promises'
 import { klona } from 'klona'
 import {
@@ -16,7 +17,7 @@ import { decode as decodeCbor } from 'cbor2'
 import { base64url } from 'multiformats/bases/base64'
 
 // Create output directory for the test vectors
-const baseDir = './output/ecdsa-sd-2023/prc/' // './output/ecdsa-sd-2023/employ/'
+const baseDir = repoPath('output/ecdsa-sd-2023/prc/') // repoPath('output/ecdsa-sd-2023/employ/')
 await mkdir(baseDir, { recursive: true })
 
 jsonld.documentLoader = localLoader // Local loader for JSON-LD
@@ -24,7 +25,7 @@ jsonld.documentLoader = localLoader // Local loader for JSON-LD
 // Read base signed document from a file
 const document = JSON.parse(
   await readFile(
-    new URL(baseDir + 'addSignedSDBase.json', import.meta.url)
+    baseDir + 'addSignedSDBase.json'
   )
 )
 

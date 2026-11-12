@@ -2,11 +2,12 @@
     Use them where you need random scalars for test vectors!
     Generalized to write to a file.
 */
+import { repoPath } from '../lib/paths.js';
 import { calculate_random_scalars } from "./lib/BBS.js";
 import { mkdir, readFile, writeFile } from 'fs/promises'
 
 
-const baseDir = './temp/rand_scalars/';
+const baseDir = repoPath('BBS/temp/rand_scalars/');
 await mkdir(baseDir, { recursive: true })
 
 const count = 1000;

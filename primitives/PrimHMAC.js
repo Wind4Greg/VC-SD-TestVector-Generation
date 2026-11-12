@@ -7,6 +7,7 @@
     usage.
 */
 
+import { repoPath } from '../lib/paths.js'
 import { readFile, writeFile } from 'fs/promises'
 import { createHmac, hmacIdCanonize } from '@digitalbazaar/di-sd-primitives'
 import jsonld from 'jsonld'
@@ -18,7 +19,7 @@ jsonld.documentLoader = localLoader // Local loader for JSON-LD
 // Read input document from a file or just specify it right here.
 const document = JSON.parse(
   await readFile(
-    new URL('./input/windDoc.json', import.meta.url)
+    repoPath('input/windDoc.json')
   )
 )
 

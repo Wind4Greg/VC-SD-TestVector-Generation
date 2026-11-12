@@ -2,6 +2,7 @@
     Steps for creating a derived proof with Anonymous Holder Binding feature.
 */
 
+import { repoPath } from '../../lib/paths.js'
 import { mkdir, readFile, writeFile } from 'fs/promises'
 import {
   createHmac, canonicalizeAndGroup, selectJsonLd,
@@ -34,28 +35,28 @@ function replacerMap (key, value) { // See https://stackoverflow.com/questions/2
 }
 
 // Create output directory for the test vectors
-const baseDir = '../output/bbs/HolderBinding/'
-const inputDir = '../../input/'
+const baseDir = repoPath('BBS/output/bbs/HolderBinding/')
+const inputDir = repoPath('input/')
 await mkdir(baseDir, { recursive: true })
 
 // Obtain presentationHeader and process into byte array format
 const deriveOptions = JSON.parse(
-  await readFile(new URL(inputDir + 'BBSDeriveMaterial.json', import.meta.url)))
+  await readFile(inputDir + 'BBSDeriveMaterial.json'))
 const presentationHeader = hexToBytes(deriveOptions.presentationHeaderHex)
 
 // Get holder secret information
 const holderSecret = JSON.parse(
-  await readFile(new URL(inputDir + 'holderSecret.json', import.meta.url)))
+  await readFile(inputDir + 'holderSecret.json'))
 console.log(holderSecret.holderSecretHex)
 const holderSecretMaterial = hexToBytes(holderSecret.holderSecretHex)
 const commitInfo = JSON.parse(
-  await readFile(new URL(baseDir + 'commitmentInfo.json', import.meta.url)))
+  await readFile(baseDir + 'commitmentInfo.json'))
 const secretProverBlind = BigInt('0x' + commitInfo.secretProverBlind)
 
 // Get the selective disclosure pointers
 const selectivePointers = JSON.parse(
   await readFile(
-    new URL(inputDir + 'licenseSelective.json', import.meta.url)
+    inputDir + 'licenseSelective.json'
   )
 )
 jsonld.documentLoader = localLoader // Local loader for JSON-LD
@@ -63,7 +64,7 @@ jsonld.documentLoader = localLoader // Local loader for JSON-LD
 // Read base signed document from a file
 const document = JSON.parse(
   await readFile(
-    new URL(baseDir + 'addSignedSDBase.json', import.meta.url)
+    baseDir + 'addSignedSDBase.json'
   )
 )
 

@@ -3,6 +3,7 @@
     BBS selective disclosure proof using selective disclosure primitive functions.
 */
 
+import { repoPath } from '../lib/paths.js';
 import {createVerifyData} from '../CommonAlgs.js';
 import { mkdir, readFile, writeFile } from 'fs/promises'
 import { createLabelMapFunction, labelReplacementCanonicalizeJsonLd } from '@digitalbazaar/di-sd-primitives'
@@ -18,7 +19,7 @@ import { API_ID_BBS_SHA, messages_to_scalars as msgsToScalars,
   prepareGenerators, numUndisclosed, proofVerify } from './lib/BBS.js'
 
 // Create output directory for the results
-const baseDir = './output/bbs/prc/' // './output/bbs/'
+const baseDir = repoPath('BBS/output/bbs/prc/') // repoPath('BBS/output/bbs/')
 await mkdir(baseDir, { recursive: true })
 
 jsonld.documentLoader = localLoader // Local loader for JSON-LD
@@ -26,7 +27,7 @@ jsonld.documentLoader = localLoader // Local loader for JSON-LD
 // Read base signed document from a file 'revealDocument.json', 'DBderivedCredential.json'
 const document = JSON.parse(
   await readFile(
-    new URL(baseDir + 'derivedRevealDocument.json', import.meta.url)
+    baseDir + 'derivedRevealDocument.json'
   )
 )
 

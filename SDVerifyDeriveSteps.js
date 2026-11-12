@@ -8,6 +8,7 @@
 
     Key initialization step: [3.4.9 createVerifyData](https://w3c.github.io/vc-di-ecdsa/#createverifydata)
 */
+import { repoPath } from './lib/paths.js';
 import {createVerifyData} from './CommonAlgs.js';
 import { mkdir, readFile, writeFile } from 'fs/promises'
 import { createLabelMapFunction, labelReplacementCanonicalizeJsonLd } from '@digitalbazaar/di-sd-primitives'
@@ -22,7 +23,7 @@ import { decode as decodeCbor} from 'cbor2'
 import { base64url } from 'multiformats/bases/base64'
 
 // Create output directory for the results
-const baseDir = './output/ecdsa-sd-2023/prc/' // './output/ecdsa-sd-2023/employ/'
+const baseDir = repoPath('output/ecdsa-sd-2023/prc/') // repoPath('output/ecdsa-sd-2023/employ/')
 const status = await mkdir(baseDir, { recursive: true })
 
 jsonld.documentLoader = localLoader // Local loader for JSON-LD
@@ -30,7 +31,7 @@ jsonld.documentLoader = localLoader // Local loader for JSON-LD
 // Read base signed document from a file 'revealDocument.json', 'DBderivedCredential.json'
 const document = JSON.parse(
   await readFile(
-    new URL(baseDir + 'derivedRevealDocument.json', import.meta.url)
+    baseDir + 'derivedRevealDocument.json'
   )
 )
 

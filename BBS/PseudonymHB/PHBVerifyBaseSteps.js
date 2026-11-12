@@ -2,6 +2,7 @@
     Walking through the steps for verifying a base BBS proof with Pseudonyms and
     Holder Binding.
 */
+import { repoPath } from '../../lib/paths.js'
 import { mkdir, readFile } from 'fs/promises'
 import { klona } from 'klona'
 import {
@@ -19,29 +20,29 @@ import { API_ID_PSEUDONYM_BBS_SHA } from '../lib/BBS.js'
 import { BlindVerifyWithNym } from '../lib/PseudonymBBS.js'
 
 // Create output directory for the test vectors
-const baseDir = '../output/bbs/PseudonymHB/'
-const inputDir = '../../input/'
+const baseDir = repoPath('BBS/output/bbs/PseudonymHB/')
+const inputDir = repoPath('input/')
 await mkdir(baseDir, { recursive: true })
 
 jsonld.documentLoader = localLoader // Local loader for JSON-LD
 
 // Get holder/prover nym information
 const holderInfo = JSON.parse(
-  await readFile(new URL('../../input/holderSecret.json', import.meta.url)))
+  await readFile(repoPath('input/holderSecret.json')))
 console.log(holderInfo.holderSecretHex)
 const holderSecret = hexToBytes(holderInfo.holderSecretHex)
 const proverInfo = JSON.parse(
-  await readFile(new URL('../../input/proverNym.json', import.meta.url)))
+  await readFile(repoPath('input/proverNym.json')))
 console.log(proverInfo.proverNymHex)
 const proverNym = BigInt('0x' + proverInfo.proverNymHex)
 const commitInfo = JSON.parse(
-  await readFile(new URL(baseDir + 'commitmentInfo.json', import.meta.url)))
+  await readFile(baseDir + 'commitmentInfo.json'))
 const secretProverBlind = BigInt('0x' + commitInfo.secretProverBlind)
 
 // Read base signed document from a file
 const document = JSON.parse(
   await readFile(
-    new URL(baseDir + 'addSignedSDBase.json', import.meta.url)
+    baseDir + 'addSignedSDBase.json'
   )
 )
 

@@ -6,6 +6,7 @@
     **except** that it uses the BBS api_id of API_ID_BLIND_BBS_SHA.
 */
 
+import { repoPath } from '../../lib/paths.js'
 import { mkdir, readFile, writeFile } from 'fs/promises'
 import { createLabelMapFunction, labelReplacementCanonicalizeJsonLd } from '@digitalbazaar/di-sd-primitives'
 import jsonld from 'jsonld'
@@ -21,8 +22,8 @@ import { API_ID_BLIND_BBS_SHA, messages_to_scalars as msgsToScalars,
 import { BlindProofVerify } from '../lib/BlindBBS.js'
 
 // Create output directory for the results
-const baseDir = '../output/bbs/HolderBinding/'
-const inputDir = '../../input/'
+const baseDir = repoPath('BBS/output/bbs/HolderBinding/')
+const inputDir = repoPath('input/')
 await mkdir(baseDir, { recursive: true })
 
 jsonld.documentLoader = localLoader // Local loader for JSON-LD
@@ -30,7 +31,7 @@ jsonld.documentLoader = localLoader // Local loader for JSON-LD
 // Read base signed document from a file 'revealDocument.json', 'DBderivedCredential.json'
 const document = JSON.parse(
   await readFile(
-    new URL(baseDir + 'derivedRevealDocument.json', import.meta.url)
+    baseDir + 'derivedRevealDocument.json'
   )
 )
 

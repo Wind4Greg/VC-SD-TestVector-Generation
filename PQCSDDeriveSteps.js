@@ -4,6 +4,7 @@
     algorithms.
 */
 
+import { repoPath } from './lib/paths.js';
 import { mkdir, readFile, writeFile } from "fs/promises";
 import {createDisclosureData} from './CommonAlgs.js';
 import jsonld from "jsonld";
@@ -28,26 +29,26 @@ function replacerMap(key, value) {
 jsonld.documentLoader = localLoader; // Local loader for JSON-LD
 
 const dirsAndFiles = {
-  selectFile: "./input/employSelective.json",
+  selectFile: repoPath('input/employSelective.json'),
 };
 
 const testCases = [
   {
     suiteName: "mldsa44-sd-2024",
-    baseDir: "./output/mldsa44-sd-2024/",
+    baseDir: repoPath('output/mldsa44-sd-2024/'),
   },
   {
     suiteName: "slhdsa128-sd-2024",
-    baseDir: "./output/slhdsa128-sd-2024/",
+    baseDir: repoPath('output/slhdsa128-sd-2024/'),
   },
   {
     suiteName: "falcon512-sd-2024",
-    baseDir: "./output/falcon512-sd-2024/",
+    baseDir: repoPath('output/falcon512-sd-2024/'),
   },
 ];
 
 const selectivePointers = JSON.parse(
-  await readFile(new URL(dirsAndFiles.selectFile, import.meta.url)),
+  await readFile(dirsAndFiles.selectFile),
 );
 
 for (const test of testCases) {
@@ -58,7 +59,7 @@ for (const test of testCases) {
 
   // Read base signed document from a file
   const document = JSON.parse(
-    await readFile(new URL(baseDir + "addSignedSDBase.json", import.meta.url)),
+    await readFile(baseDir + "addSignedSDBase.json"),
   );
 
   const options = { documentLoader: localLoader };
