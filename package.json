@@ -1,5 +1,5 @@
 {
-  "name": "ecdsa-sd-testvectors",
+  "name": "vc-sd-testvector-generation",
   "type": "module",
   "version": "1.0.0",
   "description": "",
