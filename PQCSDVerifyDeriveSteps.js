@@ -135,7 +135,6 @@ passing proofHash, publicKey, and mandatoryHash.
   const toVerify = concatBytes(
     proofHash,
     mandatoryHash,
-    ...salts,
     ...saltedHashes,
   );
 
