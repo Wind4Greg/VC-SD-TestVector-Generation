@@ -35,15 +35,15 @@ To produce the test vectors we need an input document, i.e., and unsigned verifi
 
 ## Add Base Proof Steps and Test Vectors
 
-The code in [SDAddBaseSteps.js](./SDAddBaseSteps.js) produces a signed selective disclosure base proof, [addSignedSDBase.json](output/ecdsa-sd-2023/addSignedSDBase.json) and test vectors for intermediate steps. These are contained in the directory `output/ecdsa-sd-2023` and have files names prefixed with `add`.
+The code in [sic/AddBaseSteps.js](sic/AddBaseSteps.js) produces a signed selective disclosure base proof, [addSignedSDBase.json](sic/output/ecdsa-sd-2023/wind/addSignedSDBase.json) and test vectors for intermediate steps. These are contained in the directory `sic/output/ecdsa-sd-2023/wind` and have files names prefixed with `add`.
 
 ## Derived Proof Steps and Test Vectors
 
-The code in [SDDeriveSteps.js](./SDDeriveSteps.js) produces a selective disclosure derived proof, [deriveRevealDocument.json](output/ecdsa-sd-2023/derivedRevealDocument.json) and test vectors for intermediate steps. These are contained in the directory `output/ecdsa-sd-2023` and have files names prefixed with `derive`. It starts with the file [addSignedSDBase.json](output/ecdsa-sd-2023/addSignedSDBase.json).
+The code in [sic/DeriveSteps.js](sic/DeriveSteps.js) produces a selective disclosure derived proof, [deriveRevealDocument.json](sic/output/ecdsa-sd-2023/wind/derivedRevealDocument.json) and test vectors for intermediate steps. These are contained in the directory `sic/output/ecdsa-sd-2023/wind` and have files names prefixed with `derive`. It starts with the file [addSignedSDBase.json](sic/output/ecdsa-sd-2023/wind/addSignedSDBase.json).
 
 ## Verify Derived Proof Steps and Test Vectors
 
-The code in [SDVerifyDeriveSteps.js](./SDVerifyDeriveSteps.js) verifies a selective disclosure derived document, and generates test vectors for intermediate steps. The test vectors are contained in the directory `output/ecdsa-sd-2023` and have files names prefixed with `verify`. It starts with the file [deriveRevealDocument.json](output/ecdsa-sd-2023/derivedRevealDocument.json).
+The code in [sic/VerifyDeriveSteps.js](sic/VerifyDeriveSteps.js) verifies a selective disclosure derived document, and generates test vectors for intermediate steps. The test vectors are contained in the directory `sic/output/ecdsa-sd-2023/wind` and have files names prefixed with `verify`. It starts with the file [deriveRevealDocument.json](sic/output/ecdsa-sd-2023/wind/derivedRevealDocument.json).
 
 # Test Vector Generation for SD-Primitives/BBS
 
@@ -69,4 +69,4 @@ To come up with the BBS Derived Proof we need:
 6. Generate the BBSProofValue (output of BBS proof procedure)
 7. serialize via CBOR: BBSProofValue, compressedLabelMap, mandatoryIndexes, selective indexes
 
-See the directory `/BBS` for step by step code and test vectors.
+See the directory `bbs` for step by step code and test vectors.
