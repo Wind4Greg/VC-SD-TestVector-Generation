@@ -11,7 +11,7 @@ This repository contains JavaScript (Node.js) code that generates the selective 
 The algorithms the three approaches share have been factored out into the [VC-Data-Integrity](https://github.com/w3c/vc-data-integrity) specification. The approaches differ in how claims are signed:
 
 * **SIC** signs each non-mandatory claim individually. It suits signature algorithms with short signatures, such as ECDSA.
-* **SHoC** signs one list of salted claim hashes. It suits algorithms with long signatures, such as the post-quantum ones.
+* **SHoC** salts and hashes each claim, and signs the root of a Merkle tree built from those hashes. It suits algorithms with long signatures, such as the post-quantum ones.
 * **BBS** provides selective disclosure at the cryptographic layer, and its derived proofs are unlinkable.
 
 Each specification repository keeps its test vectors in its own test vector directory. The files are copied there from the output folders here.
@@ -22,6 +22,8 @@ Each specification repository keeps its test vectors in its own test vector dire
 npm install
 npm test            # verify all committed test vectors (changes nothing)
 npm run gen:all     # regenerate all test vectors
+npm run check:merkle   # check the SHoC Merkle tree algorithms (see shoc/README.md)
+npm run check:shoc     # check SHoC salt derivation and proof value encoding
 ```
 
 To regenerate one approach, use `npm run gen:sic`, `gen:shoc` or `gen:bbs`. To regenerate only some examples, add `--example`:
@@ -37,12 +39,9 @@ Each step script can also be run on its own from any directory, for example `nod
 
 ### Which outputs change when regenerated
 
-The SIC and BBS baseline outputs are deterministic: regenerating them gives byte-identical files. Some outputs change on every run, because the algorithms call for fresh randomness:
+The SIC, SHoC and BBS baseline outputs are deterministic: regenerating them gives byte-identical files. SHoC gets there by using a fixed salt seed from [input/SaltSeed.json](input/SaltSeed.json), where the spec calls for a fresh random seed in every real proof.
 
-* **SHoC:** the salts.
-* **BBS holder binding and pseudonym features:** the commitments and the proofs.
-
-For those, `npm test` is the check that matters.
+The BBS holder binding and pseudonym outputs (the commitments and the proofs) change on every run, because those algorithms call for fresh randomness. For those, `npm test` is the check that matters.
 
 ## Repository layout
 
@@ -58,7 +57,8 @@ sic/        SIC step scripts, proof values, output/
 shoc/       SHoC step scripts, proof values, output/
 bbs/        BBS step scripts per feature, BBS crypto (bbs/lib/), output/
 input/      example credentials, pointers, and key material
-tools/      generate.js (the npm scripts) and small investigation scripts
+tools/      generate.js (the gen and test npm scripts), merkleCheck.js and
+            shocCheck.js (the check scripts), small investigation scripts
 ```
 
 Output folders are organized as `<approach>/output/<suite or feature>/<example>/`. File names start with the step that produced them:
@@ -76,7 +76,6 @@ Output folders are organized as `<approach>/output/<suite or feature>/<example>/
 | `proofConfigCanon` | Base proof configuration: canonicalize the proof options. |
 | `transformSD` | Base proof transformation: canonicalize, apply the label map, and split into mandatory and non-mandatory N-Quads. |
 | `hashingSD` | Base proof hashing: `proofHash` and `mandatoryHash`. |
-| `saltedHashingSD` | Salts and salted hashes of the non-mandatory N-Quads (SHoC only). |
 | `createDisclosureData` | Reveal document, label map, mandatory and selective indexes for a derived proof. |
 | `createVerifyData` | `proofHash`, `mandatoryHash` and non-mandatory N-Quads for verifying a derived proof. |
 
@@ -101,20 +100,9 @@ To add an example:
 3. Add an output folder for it to the `outputDirs` map in each step script that should generate it, and to the group's `examples` list in [tools/generate.js](tools/generate.js).
 4. If the credential uses a JSON-LD context that isn't already in `lib/contexts/`, add the context there and register it in [lib/documentLoader.js](lib/documentLoader.js).
 
-## To do
+## Specification issues
 
-The [VC-Data-Integrity](https://github.com/w3c/vc-data-integrity) SHoC approach has been updated with two optimizations. These still need to be implemented here, and new test vectors produced.
-
-One of the optimizations is to use Merkle trees with "sub-tree" inclusion proofs and verification. Sample code and algorithms for this with illustrative figures are given in the repo [SimpleMerkle](https://github.com/Wind4Greg/SimpleMerkle).
-
-The [VC-Data-Integrity](https://github.com/w3c/vc-data-integrity) specification contains alternative more formal descriptions of the Merkle Tree algorithms in the following sections:
-
-1. [Merkel Tree Hash (MTH)](https://w3c.github.io/vc-data-integrity/#MTH)
-2. [ComputeTreeShape](https://w3c.github.io/vc-data-integrity/#ComputeTreeShape), in the code of [SimpleMerkle](https://github.com/Wind4Greg/SimpleMerkle) I constructed the full tree and gave the nodes names like those mentioned in the spec.
-3. [CreateSubtreeProof](https://w3c.github.io/vc-data-integrity/#CreateSubtreeProof)
-4. [VerifySubtreeProof](https://w3c.github.io/vc-data-integrity/#VerifySubtreeProof)
-
-We need to verify that these algorithms descriptions are implementable and produce the same results as those in [SimpleMerkle](https://github.com/Wind4Greg/SimpleMerkle).
+Issues found in the specifications while producing the test vectors are recorded with the approach they affect, for example [shoc/SPEC_ISSUES.md](shoc/SPEC_ISSUES.md).
 
 ## Libraries used
 

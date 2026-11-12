@@ -1,32 +1,35 @@
 /*
-    Walking through the steps and generating test vectors for  creating ("Add")
-    a base PQC-SD proof using selective disclosure primitive functions and 
-    salted hash approach. The higher level steps are *transformation*, 
-    *hashing*, and *serialization*.
+    Walking through the steps and generating test vectors for creating ("Add")
+    a base SHoC proof (Salted Hash of Claims with Merkle tree aggregation)
+    for the post-quantum SD cryptosuites. The higher level steps are
+    *transformation*, *hashing*, *Merkleization* and *serialization*.
 
-    This has been slightly reordered so that procedures that are independent of
-    a particular ciphersuite name or signature algorithm occur first. So that  
-    those outputs can be shared rather than repeated, e.g., salts and salted 
-    hashes.
+    This has been reordered so that the steps that don't depend on the
+    cryptosuite or signature algorithm come first, and their outputs are
+    shared by all three suites: the transformation, the salts derived from
+    the salt seed, the leaf hashes and the Merkle root.
 
+    Spec sections (VC-Data-Integrity): MerkleizeSD, DeriveSaltsSD, MTH,
+    SerializeBase-SHoC.
 
+    The salt seed is fixed (input/SaltSeed.json) so that the test vectors are
+    reproducible. The spec requires a fresh random seed for every real proof.
 */
 
 import { repoPath } from '../lib/paths.js';
 import { serializeBaseProofValue } from './proofValue.js';
+import { deriveSalts, uint64be } from './salts.js';
+import { leafHash, mth } from './merkle.js';
 import { examples, selectExamples } from '../lib/examples.js';
-import { hashingSD, proofConfigCanon, saltedHashingSD, transformSD} from '../lib/sdCommon.js'
+import { hashingSD, proofConfigCanon, transformSD } from '../lib/sdCommon.js';
 import { mkdir, readFile, writeFile } from "fs/promises";
 import jsonld from "jsonld";
 import { localLoader } from "../lib/documentLoader.js";
-import { sha256 } from "@noble/hashes/sha256";
-import { hmac } from "@noble/hashes/hmac";
 import { bytesToHex, concatBytes, hexToBytes } from "@noble/hashes/utils";
 import { ml_dsa44 } from "@noble/post-quantum/ml-dsa.js";
 import { slh_dsa_sha2_128s } from "@noble/post-quantum/slh-dsa.js";
 import { falcon512padded } from "@noble/post-quantum/falcon.js";
 import { klona } from "klona";
-import { base64url } from "multiformats/bases/base64";
 
 // For serialization of JavaScript Map via JSON
 function replacerMap(key, value) {
@@ -42,9 +45,8 @@ function replacerMap(key, value) {
 }
 
 jsonld.documentLoader = localLoader; // Local loader for JSON-LD
-const utf8encoder = new TextEncoder(); // To convert utf8 text to Uint8Array
 
-// PQC-SD test vectors are only generated for the "employ" example so far
+// SHoC test vectors are only generated for the "employ" example so far
 const example = examples[selectExamples(["employ"])[0]];
 const dirsAndFiles = {
   outputDir: repoPath('shoc/output/common/employ/'), // For outputs across different signature schemes
@@ -63,11 +65,16 @@ const keyMaterialHMAC = JSON.parse(
 const hmacKeyString = keyMaterialHMAC.hmacKeyString;
 const hmacKey = hexToBytes(hmacKeyString);
 
+// Salt seed -- fixed for reproducible test vectors, see the note above
+const { saltSeedString } = JSON.parse(
+  await readFile(repoPath('input/SaltSeed.json')),
+);
+const saltSeed = hexToBytes(saltSeedString);
+
 // Read input document from a file
 const document = JSON.parse(
   await readFile(dirsAndFiles.inputFile),
 );
-
 
 // **Transformation Step**
 
@@ -75,8 +82,8 @@ const mandatoryPointers = JSON.parse(
   await readFile(dirsAndFiles.mandatoryFile),
 );
 
-// General SD transform, note  true ==> legacy ECDSA-SD label map
-const {mandatory, nonMandatory} = await transformSD(document, mandatoryPointers, hmacKey, false);
+// General SD transform, false ==> shuffled label map (not the legacy ECDSA-SD one)
+const { mandatory, nonMandatory } = await transformSD(document, mandatoryPointers, hmacKey, false);
 
 // As output the transformation algorithm wants us to return an object with
 // "mandatoryPointers" set to mandatoryPointers, "mandatory" set to mandatory,
@@ -95,22 +102,37 @@ await writeFile(
   JSON.stringify(transformOutput, replacerMap, 2),
 );
 
-//  Create salted hash array consisting of random salts (32 bytes for 256 bits or
-//  16 bytes for 128 bits) and salted hashes of (salt concatenated with non-mandatory value)
-//  SD-JWT currently uses 128 bits: https://www.rfc-editor.org/rfc/rfc9901.html#section-4.2.1
-//  So I'll just use 16 bytes too.
+// **Merkleization Step** (MerkleizeSD)
 
-const {salts, saltedHashes} = saltedHashingSD(nonMandatory, "sha256");
-let saltedHashInfo = {
-  salts: salts.map((s) => bytesToHex(s)),
-  saltedHashes: saltedHashes.map((sh) => bytesToHex(sh)),
-};
+// The leaves are the non-mandatory statements in canonical order.
+const nonMandatoryStatements = [...nonMandatory.values()];
+const treeSize = nonMandatoryStatements.length;
+
+// DeriveSaltsSD: salts[i] = HMAC-SHA-256(saltSeed, uint64be(i))[0:16]
+const salts = deriveSalts(saltSeed, treeSize);
 await writeFile(
-  baseDir + "addSaltedHashes.json",
-  JSON.stringify(saltedHashInfo, null, 2),
+  baseDir + "addSalts.json",
+  JSON.stringify({
+    saltSeed: bytesToHex(saltSeed),
+    salts: salts.map((s) => bytesToHex(s)),
+  }, null, 2),
 );
 
-// Signature specific  stuff
+// Leaf hash j = H(0x00 || salts[j] || UTF-8(nonMandatory[j])), then the
+// Merkle Tree Hash over the leaf hashes gives the root that gets signed.
+const leafHashes = nonMandatoryStatements.map((statement, j) => leafHash(salts[j], statement));
+const merkleRoot = mth(leafHashes);
+await writeFile(
+  baseDir + "addMerkleData.json",
+  JSON.stringify({
+    treeSize,
+    leafHashes: leafHashes.map((h) => bytesToHex(h)),
+    merkleRoot: bytesToHex(merkleRoot),
+  }, null, 2),
+);
+console.log(`treeSize: ${treeSize}, merkleRoot: ${bytesToHex(merkleRoot)}`);
+
+// Signature specific stuff
 
 const testCases = [
   {
@@ -137,7 +159,7 @@ const testCases = [
 ];
 
 for (const test of testCases) {
-  console.log("Working on test case: ${test.suiteName}");
+  console.log(`Working on test case: ${test.suiteName}`);
   const baseDir = test.outputDir;
   await mkdir(baseDir, { recursive: true });
   // Obtain key material and process into byte array format
@@ -162,63 +184,56 @@ for (const test of testCases) {
     JSON.stringify(proofConfig, null, 2),
   );
 
-  const proofCanon = await proofConfigCanon(proofConfig, document, "sha256") 
+  const proofCanon = await proofConfigCanon(proofConfig, document, "sha256");
   await writeFile(baseDir + "addProofConfigCanon.txt", proofCanon);
 
   /* **Hashing Step**
    "The required inputs to this algorithm are a transformed data document (transformedDocument)
    and canonical proof configuration (canonicalProofConfig). A hash data value represented as an
-   object is produced as output. " */
+   object is produced as output. " In the SHoC approach the salted hash data
+   from MerkleizeSD (saltSeed, treeSize, merkleRoot) is added to it. */
 
-  const {proofHash, mandatoryHash} = hashingSD(mandatory, proofCanon, "sha256");
-  // Initialize hashData as a deep copy of transformedDocument and add proofHash as
-  // "proofHash" and mandatoryHash as "mandatoryHash" to that object.
+  const { proofHash, mandatoryHash } = hashingSD(mandatory, proofCanon, "sha256");
   const hashData = klona(transformed);
   hashData.proofHash = proofHash;
   hashData.mandatoryHash = mandatoryHash;
-  // For test vector purposes convert maps to arrays of pairs and uint8arrays to hex
-  // and don't rewrite the transformed information.
-  const hashDataOutput = {};
-  hashDataOutput.proofHash = bytesToHex(proofHash);
-  hashDataOutput.mandatoryHash = bytesToHex(mandatoryHash);
+  hashData.saltSeed = saltSeed;
+  hashData.treeSize = treeSize;
+  hashData.merkleRoot = merkleRoot;
+
+  // **SerializeBase-SHoC**
+  // toSign = proofHash || mandatoryHash || uint64be(treeSize) || merkleRoot.
+  // The salt seed is not signed; the salts are bound to the root through
+  // the leaf hashes.
+  const toSign = concatBytes(
+    hashData.proofHash,
+    hashData.mandatoryHash,
+    uint64be(hashData.treeSize),
+    hashData.merkleRoot,
+  );
+  // For test vector purposes convert uint8arrays to hex and don't rewrite
+  // the transformed information.
+  const hashDataOutput = {
+    proofHash: bytesToHex(proofHash),
+    mandatoryHash: bytesToHex(mandatoryHash),
+    treeSize,
+    merkleRoot: bytesToHex(merkleRoot),
+    toSign: bytesToHex(toSign),
+  };
   await writeFile(
     baseDir + "addHashData.json",
     JSON.stringify(hashDataOutput, null, 2),
   );
 
-  // **NEW** produce a PQC signature over the concatenation of proofHash, mandatoryHash, saltedHashes
-  const bigConcatenation = concatBytes(
-    proofHash,
-    mandatoryHash,
-    ...saltedHashes,
-  );
-  const hashBigConcat = sha256(bigConcatenation);
-  // Note that the extraEntropy option may only be valid for ML-DSA and SLH-DSA
-  let signature = test.sigAlg.sign(hashBigConcat, secretKey, {extraEntropy: false});
+  // Note that the extraEntropy option makes ML-DSA and SLH-DSA signing
+  // deterministic; it may have no effect for Falcon.
+  const signature = test.sigAlg.sign(toSign, secretKey, { extraEntropy: false });
 
-  // /* 3.4.2 **MODIFIED** serializeBaseProofValue
-  // The following algorithm serializes the base proof value, including the signature,
-  // HMAC key, salts, salted  hashes, and mandatory pointers. The required inputs are the signature,
-  // an HMAC key hmacKey, an array of salts, an array of salted hashes and an array of mandatoryPointers.
-  // A single base proof string value is produced as output.
-
-  // Initialize a byte array, proofValue, that starts with the ECDSA-SD base proof header bytes 0xd9, 0x5d, and 0x00.
-
-  // Initialize components to an array with five elements containing the values of: signature, hmacKey,
-  //  salts, saltedHashes, and mandatoryPointers.
-
-  // CBOR-encode components and append it to proofValue.
-
-  // Initialize baseProof to a string with the multibase-base64url-no-pad-encoding of proofValue. That is, return a
-  //  string starting with "u" and ending with the base64url-no-pad-encoded value of proofValue.
-  // Return baseProof as base proof.
-  // */
-  console.log(salts);
-  console.log(saltedHashes);
+  // Components: signature, hmacKey, saltSeed, treeSize, merkleRoot,
+  // mandatoryPointers, behind the header bytes 0xd9, 0x5d, 0x12.
   const baseProof = serializeBaseProofValue({
-    signature, hmacKey, salts, saltedHashes, mandatoryPointers,
+    signature, hmacKey, saltSeed, treeSize, merkleRoot, mandatoryPointers,
   });
-  // console.log(baseProof)
   console.log(`Length of baseProof is ${baseProof.length} characters`);
 
   // Construct and Write Signed Document
@@ -226,7 +241,6 @@ for (const test of testCases) {
   delete proofConfig["@context"];
   signedDocument.proof = proofConfig;
   signedDocument.proof.proofValue = baseProof;
-  console.log(JSON.stringify(signedDocument, null, 2));
   await writeFile(
     baseDir + "addSignedSDBase.json",
     JSON.stringify(signedDocument, null, 2),

@@ -10,6 +10,7 @@
     "gen:bbs": "node tools/generate.js bbs",
     "gen:all": "node tools/generate.js all",
     "check:merkle": "node tools/merkleCheck.js",
+    "check:shoc": "node tools/shocCheck.js",
     "test": "node tools/generate.js all --verify-only"
   },
   "keywords": [],

@@ -1,15 +1,22 @@
 /*
-    Walking through the steps for verifying a PQC-SD base proof.
+    Walking through the steps for verifying a SHoC base proof. This is a
+    holder-side check (the spec defines no base proof verification): the
+    holder rebuilds the Merkle root from the salt seed and the non-mandatory
+    statements, checks it against the root in the base proof, and checks the
+    issuer's signature over proofHash || mandatoryHash || uint64be(treeSize)
+    || merkleRoot.
 */
 import { repoPath } from '../lib/paths.js';
 import { parseBaseProofValue } from './proofValue.js';
-import { mkdir, readFile } from "fs/promises";
+import { deriveSalts, uint64be } from './salts.js';
+import { leafHash, mth } from './merkle.js';
+import { readFile } from "fs/promises";
 import { klona } from "klona";
 import {
   createHmac,
   canonicalizeAndGroup,
 } from "@digitalbazaar/di-sd-primitives";
-import { createShuffledIdLabelMapFunction } from '../lib/labelMaps.js'
+import { createShuffledIdLabelMapFunction } from '../lib/labelMaps.js';
 import jsonld from "jsonld";
 import { sha256 } from "@noble/hashes/sha256";
 import { ml_dsa44 } from "@noble/post-quantum/ml-dsa.js";
@@ -18,17 +25,6 @@ import { falcon512padded } from "@noble/post-quantum/falcon.js";
 import { localLoader } from "../lib/documentLoader.js";
 import { bytesToHex, concatBytes } from "@noble/hashes/utils";
 import { base64url } from "multiformats/bases/base64";
-
-// Helper function for array equality
-// Source - https://stackoverflow.com/q/76127214
-// Posted by Filip Seman
-// Retrieved 2026-04-16, License - CC BY-SA 4.0
-function isEqual(arr1, arr2) {
-  if (arr1.length !== arr2.length) {
-    return false;
-  }
-  return arr1.every((value, index) => value === arr2[index]);
-}
 
 jsonld.documentLoader = localLoader; // Local loader for JSON-LD
 
@@ -50,7 +46,7 @@ const testCases = [
   },
 ];
 
-for (let test of testCases) {
+for (const test of testCases) {
   console.log(`SD Base Verification starting for ${test.suiteName}`);
   const baseDir = test.baseDir;
 
@@ -64,19 +60,13 @@ for (let test of testCases) {
   // parseBaseProofValue:
   const proof = document.proof;
   delete document.proof; // IMPORTANT: all work uses document without proof
-  const { signature, hmacKey, salts, saltedHashes, mandatoryPointers } =
+  const { signature, hmacKey, saltSeed, treeSize, merkleRoot, mandatoryPointers } =
     parseBaseProofValue(proof.proofValue);
 
-  // check we got the salts  and  saltedHashes
-  // let saltedHashInfo = {
-  //   saltsHex: salts.map((s) => bytesToHex(new Uint8Array(s))),
-  //   saltedHashesHex: saltedHashes.map((sh) => bytesToHex(new Uint8Array(sh))),
-  // };
-  // console.log(JSON.stringify(saltedHashInfo, null, 2));
-  // setup HMAC stuff
+  // Canonicalize with the shuffled label map and split into mandatory and
+  // non-mandatory statements.
   const hmac = await createHmac({ key: hmacKey });
   const labelMapFactoryFunction = createShuffledIdLabelMapFunction({ hmac });
-
   const groups = {
     mandatory: mandatoryPointers,
   };
@@ -87,9 +77,8 @@ for (let test of testCases) {
     options,
   });
   const mandatoryMatch = stuff.groups.mandatory.matching;
-  const mandatoryNonMatch = stuff.groups.mandatory.nonMatching;
+  const nonMandatory = [...stuff.groups.mandatory.nonMatching.values()];
 
-  // Check signature;
   // canonize proof configuration and hash it
   const proofConfig = klona(proof);
   proofConfig["@context"] = document["@context"];
@@ -102,35 +91,32 @@ for (let test of testCases) {
   const mandatoryHash = sha256(mandatoryCanon);
   console.log(`mandatory hash: ${bytesToHex(mandatoryHash)}`);
 
-  const signData = concatBytes(
+  // Rebuild the Merkle root from the salt seed and the statements
+  const treeSizeVerified = nonMandatory.length === treeSize;
+  console.log(`treeSize ${treeSize} matches the ${nonMandatory.length} non-mandatory statements: ${treeSizeVerified}`);
+  const salts = deriveSalts(saltSeed, nonMandatory.length);
+  const leafHashes = nonMandatory.map((statement, j) => leafHash(salts[j], statement));
+  const rootVerified = bytesToHex(mth(leafHashes)) === bytesToHex(merkleRoot);
+  console.log(`Merkle root verified: ${rootVerified}`);
+
+  // Check the signature
+  const toVerify = concatBytes(
     proofHash,
     mandatoryHash,
-    ...saltedHashes,
+    uint64be(treeSize),
+    merkleRoot,
   );
 
   // Get issuer public key
-  // console.log(proof.verificationMethod.split('did:key:'))
   const encodedPbk = proof.verificationMethod
     .split("did:key:")[1]
     .split("#")[0];
   let pbk = base64url.decode(encodedPbk);
   pbk = pbk.slice(2, pbk.length); // First two bytes are multi-format indicator
   console.log(`Public Key hex: Length: ${pbk.length}`);
-  let verificationResult = test.sigAlg.verify(signature, sha256(signData), pbk);
-  console.log(`Signature verified: ${verificationResult}`);
+  const signatureVerified = test.sigAlg.verify(signature, toVerify, pbk);
+  console.log(`Signature verified: ${signatureVerified}`);
 
-  const utf8encoder = new TextEncoder(); // To convert utf8 text to Uint8Array
-
-  // Check each non-mandatory nquad salted hash
-  const nonMandatory = [...mandatoryNonMatch.values()];
-  let baseVerified = verificationResult;
-  nonMandatory.forEach((value, index) => {
-    let aSaltedHash = sha256(
-      concatBytes(salts[index], utf8encoder.encode(value)),
-    );
-    verificationResult = isEqual(aSaltedHash, saltedHashes[index]);
-    console.log(`Salted hash ${index} verified: ${verificationResult}`);
-    baseVerified &&= verificationResult;
-  });
+  const baseVerified = treeSizeVerified && rootVerified && signatureVerified;
   console.log(`Base proof verified: ${baseVerified}`);
 }

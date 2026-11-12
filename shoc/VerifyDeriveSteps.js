@@ -1,35 +1,29 @@
 /*
-    Walking through the steps and generating test vectors for verifying a derived
-    PQC-SDH selective disclosure proof using selective disclosure primitive functions.
+    Walking through the steps for verifying a derived SHoC selective
+    disclosure proof, following VerifyDerived-SHoC in VC-Data-Integrity.
+
+    The verifier hashes each disclosed statement with its salt from the
+    derived proof, reconstructs the Merkle root from those leaf hashes and
+    the subtree proof (VerifySubtreeProof), and checks the issuer's signature
+    over proofHash || mandatoryHash || uint64be(treeSize) || root.
 
     Key initialization step: [3.4.9 createVerifyData](https://w3c.github.io/vc-di-ecdsa/#createverifydata)
 */
 import { repoPath } from '../lib/paths.js';
 import { parseDerivedProofValue } from './proofValue.js';
-import {createVerifyData} from '../lib/sdCommon.js';
-import { mkdir, readFile, writeFile } from "fs/promises";
+import { uint64be } from './salts.js';
+import { expectedProofLength, leafHash, verifySubtreeProof } from './merkle.js';
+import { createVerifyData } from '../lib/sdCommon.js';
+import { readFile } from "fs/promises";
 import jsonld from "jsonld";
 import { localLoader } from "../lib/documentLoader.js";
-import { sha256 } from "@noble/hashes/sha256";
-import { bytesToHex, concatBytes, hexToBytes } from "@noble/hashes/utils";
+import { bytesToHex, concatBytes } from "@noble/hashes/utils";
 import { ml_dsa44 } from "@noble/post-quantum/ml-dsa.js";
 import { slh_dsa_sha2_128s } from "@noble/post-quantum/slh-dsa.js";
 import { falcon512padded } from "@noble/post-quantum/falcon.js";
-import { klona } from "klona";
 import { base64url } from "multiformats/bases/base64";
 
 jsonld.documentLoader = localLoader; // Local loader for JSON-LD
-
-// Helper function for array equality
-// Source - https://stackoverflow.com/q/76127214
-// Posted by Filip Seman
-// Retrieved 2026-04-16, License - CC BY-SA 4.0
-function isEqual(arr1, arr2) {
-  if (arr1.length !== arr2.length) {
-    return false;
-  }
-  return arr1.every((value, index) => value === arr2[index]);
-}
 
 const testCases = [
   {
@@ -50,70 +44,71 @@ const testCases = [
 ];
 
 for (const test of testCases) {
-  // Create output directory for the results
   const baseDir = test.baseDir;
-  const status = await mkdir(baseDir, { recursive: true });
 
-  // Read base signed document from a file 'revealDocument.json', 'DBderivedCredential.json'
+  // Read the derived (selectively disclosed) document
   const document = JSON.parse(
-    await readFile(
-      baseDir + "derivedRevealDocument.json",
-    ),
+    await readFile(baseDir + "derivedRevealDocument.json"),
   );
-
-  const options = { documentLoader: localLoader };
-
-
   const proof = document.proof;
-  const proofValue = proof.proofValue;
-  
-  //  **Parse Derived Proof Value**
 
-  // Checks the header and that the components have the expected types
-  let { signature, salts, saltedHashes, compressedLabelMap: labelMapCompressed,
-    mandatoryIndexes, selectiveIndexes } = parseDerivedProofValue(proofValue);
-  
+  //  **ParseDerived-SHoC**
+  // Checks the header, the component types and lengths, that the leaf
+  // indexes are ascending and within treeSize, and the treeSize policy bound.
+  const { signature, treeSize, leafIndexes, salts, subtreeProof,
+    compressedLabelMap, mandatoryIndexes } = parseDerivedProofValue(proof.proofValue);
 
   // get additional verify data
-  const {proofHash, mandatoryHash, nonMandatory} = await createVerifyData(document, labelMapCompressed, mandatoryIndexes, false);
+  const { proofHash, mandatoryHash, nonMandatory } =
+    await createVerifyData(document, compressedLabelMap, mandatoryIndexes, false);
 
-  // **Approach Specific Cryptographic Verification**
+  // **VerifyDerived-SHoC**
+  let verified = true;
+  const fail = (message) => {
+    console.log(`Check failed: ${message}`);
+    verified = false;
+  };
+  if (salts.length !== leafIndexes.length) {
+    fail(`${salts.length} salts for ${leafIndexes.length} disclosed leaves`);
+  }
+  if (subtreeProof.length !== expectedProofLength(treeSize, leafIndexes)) {
+    fail(`subtree proof has ${subtreeProof.length} values, expected ${expectedProofLength(treeSize, leafIndexes)}`);
+  }
+  // Every non-mandatory statement in the presented document must be
+  // accounted for by exactly one leaf index.
+  if (nonMandatory.length !== leafIndexes.length) {
+    fail(`${nonMandatory.length} non-mandatory statements for ${leafIndexes.length} disclosed leaves`);
+  }
 
-  // Get public key
-  // console.log(proof.verificationMethod.split("did:key:"));
-  //
-  const encodedPbk = proof.verificationMethod.split("did:key:")[1];
-  // console.log(encodedPbk);
-  let pbk = base64url.decode(encodedPbk);
-  pbk = pbk.slice(2, pbk.length); // First two bytes are multi-format indicator
-  // console.log(`Public Key hex: ${bytesToHex(pbk)}, Length: ${pbk.length}`)
+  // Positional pairing: statement i is hashed with salts[i]. leafIndexes[i]
+  // is only its leaf position in the tree.
+  let reconstructedRoot = null;
+  if (verified) {
+    const disclosedLeafHashes = nonMandatory.map((statement, i) => leafHash(salts[i], statement));
+    try {
+      reconstructedRoot = verifySubtreeProof(treeSize, leafIndexes, disclosedLeafHashes, subtreeProof);
+      console.log(`Reconstructed Merkle root: ${bytesToHex(reconstructedRoot)}`);
+    } catch (error) {
+      fail(`VerifySubtreeProof: ${error.message}`);
+    }
+  }
 
-  /* Initialize toVerify to the result of calling the algorithm in Setion 3.4.1 serializeSignData,
-passing proofHash, publicKey, and mandatoryHash.
-*/
+  if (verified) {
+    // Get public key
+    const encodedPbk = proof.verificationMethod.split("did:key:")[1];
+    let pbk = base64url.decode(encodedPbk);
+    pbk = pbk.slice(2, pbk.length); // First two bytes are multi-format indicator
 
-  const toVerify = concatBytes(
-    proofHash,
-    mandatoryHash,
-    ...saltedHashes,
-  );
-
-  // Verify base signature
-  const msgHash = sha256(toVerify); // Hash is done outside of the algorithm in noble/curve case.
-  let verificationResult = test.sigAlg.verify(signature, msgHash, pbk);
-  console.log(`Base Signature verified: ${verificationResult}`);
-
-
-  const utf8encoder = new TextEncoder(); // To convert utf8 text to Uint8Array
-
-  nonMandatory.forEach((value, index) => {
-    let aSaltedHash = sha256(
-      concatBytes(salts[index], utf8encoder.encode(value)),
+    const toVerify = concatBytes(
+      proofHash,
+      mandatoryHash,
+      uint64be(treeSize),
+      reconstructedRoot,
     );
-    let shResult = isEqual(aSaltedHash, saltedHashes[selectiveIndexes[index]]);
-    console.log(`Salted hash ${index} verified: ${shResult}`);
-    verificationResult &&= shResult;
-  });
+    const signatureVerified = test.sigAlg.verify(signature, toVerify, pbk);
+    console.log(`Base Signature verified: ${signatureVerified}`);
+    verified &&= signatureVerified;
+  }
 
-  console.log(`${test.suiteName} Derived document verified: ${verificationResult}`);
+  console.log(`${test.suiteName} Derived document verified: ${verified}`);
 }

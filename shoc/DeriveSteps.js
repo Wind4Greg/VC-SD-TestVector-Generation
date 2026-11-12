@@ -1,18 +1,27 @@
 /*
-    Walking through the steps and generating test vectors for the create a PQC-SD
-    **derived** selective disclosure proof using selective disclosure common 
-    algorithms.
+    Walking through the steps and generating test vectors for creating a SHoC
+    **derived** selective disclosure proof using the selective disclosure
+    common algorithms.
+
+    The holder derives all the salts from the base proof's salt seed,
+    recomputes every leaf hash from the non-mandatory statements, and builds a
+    subtree proof for the disclosed leaves. Only the disclosed leaves' salts
+    go into the derived proof; the salt seed never does.
+
+    Spec sections (VC-Data-Integrity): ParseBase-SHoC, DeriveSaltsSD,
+    CreateSubtreeProof, SerializeDerived-SHoC.
 */
 
 import { repoPath } from '../lib/paths.js';
 import { parseBaseProofValue, serializeDerivedProofValue } from './proofValue.js';
+import { deriveSalts } from './salts.js';
+import { createSubtreeProof, leafHash, mth, subtreeProofNames } from './merkle.js';
 import { examples, selectExamples } from '../lib/examples.js';
 import { mkdir, readFile, writeFile } from "fs/promises";
-import {createDisclosureData} from '../lib/sdCommon.js';
+import { createDisclosureData } from '../lib/sdCommon.js';
 import jsonld from "jsonld";
 import { localLoader } from "../lib/documentLoader.js";
-import { bytesToHex, concatBytes } from "@noble/hashes/utils";
-import { base64url } from "multiformats/bases/base64";
+import { bytesToHex } from "@noble/hashes/utils";
 
 // For serialization of JavaScript Map via JSON
 function replacerMap(key, value) {
@@ -29,7 +38,7 @@ function replacerMap(key, value) {
 
 jsonld.documentLoader = localLoader; // Local loader for JSON-LD
 
-// PQC-SD test vectors are only generated for the "employ" example so far
+// SHoC test vectors are only generated for the "employ" example so far
 const example = examples[selectExamples(["employ"])[0]];
 const dirsAndFiles = {
   selectFile: example.selective,
@@ -65,36 +74,29 @@ for (const test of testCases) {
     await readFile(baseDir + "addSignedSDBase.json"),
   );
 
-  const options = { documentLoader: localLoader };
-
-  /* Initialize signature, hmacKey, salts, saltedHashes, and mandatoryPointers to the
-values of the associated properties in the object returned when calling the algorithm
-parseBaseProofValue, passing the proofValue from proof. */
-
-  // parseBaseProofValue:
+  // **ParseBase-SHoC**
   const proof = document.proof;
   delete document.proof; // IMPORTANT: all work uses document without proof
-  const { signature, hmacKey, salts, saltedHashes, mandatoryPointers } =
+  const { signature, hmacKey, saltSeed, treeSize, merkleRoot, mandatoryPointers } =
     parseBaseProofValue(proof.proofValue);
   const baseProofData = {
     signature: bytesToHex(signature),
     hmacKey: bytesToHex(hmacKey),
-    salts: salts.map((s) => bytesToHex(s)),
-    saltedHashes: saltedHashes.map((sh) => bytesToHex(sh)),
+    saltSeed: bytesToHex(saltSeed),
+    treeSize,
+    merkleRoot: bytesToHex(merkleRoot),
     mandatoryPointers,
   };
   await writeFile(
     baseDir + "derivedRecoveredBaseData.json",
-    JSON.stringify(baseProofData, replacerMap, 2),
+    JSON.stringify(baseProofData, null, 2),
   );
 
   /* Create Disclosure Data */
 
-  const {revealDocument, mandatoryIndexes, selectiveIndexes, verifierLabelMap, 
-    mandatory, nonMandatory} = await createDisclosureData(document, 
+  const { revealDocument, mandatoryIndexes, selectiveIndexes, verifierLabelMap,
+    nonMandatory } = await createDisclosureData(document,
     mandatoryPointers, selectivePointers, hmacKey, false);
-
-  const filteredSalts = salts.filter((value, index) => selectiveIndexes.includes(index))
 
   await writeFile(
     baseDir + "derivedUnsignedReveal.json",
@@ -102,9 +104,7 @@ parseBaseProofValue, passing the proofValue from proof. */
   );
 
   const groupIndexes = {
-    // combinedIndexes,
     mandatoryIndexes,
-    // nonMandatoryIndexes,
     selectiveIndexes,
   };
   await writeFile(
@@ -112,41 +112,66 @@ parseBaseProofValue, passing the proofValue from proof. */
     JSON.stringify(groupIndexes, replacerMap),
   );
 
+  // **SerializeDerived-SHoC**
+  // leafIndexes: positions of the disclosed statements among the
+  // non-mandatory statements, i.e., the tree leaves.
+  const leafIndexes = selectiveIndexes;
+  const nonMandatoryStatements = [...nonMandatory.values()];
+  if (nonMandatoryStatements.length !== treeSize) {
+    throw new Error(`${nonMandatoryStatements.length} non-mandatory statements but treeSize is ${treeSize}`);
+  }
+  // Derive all salts from the seed and recompute every leaf hash.
+  const salts = deriveSalts(saltSeed, treeSize);
+  const leafHashes = nonMandatoryStatements.map((statement, j) => leafHash(salts[j], statement));
+  // Holder sanity check, not a spec step: the recomputed root matches the
+  // signed one, so the derived proof will verify.
+  if (bytesToHex(mth(leafHashes)) !== bytesToHex(merkleRoot)) {
+    throw new Error('Recomputed Merkle root does not match the base proof');
+  }
+  const subtreeProof = createSubtreeProof(treeSize, leafIndexes, leafHashes);
+  const filteredSalts = leafIndexes.map((j) => salts[j]);
+
+  // For readability: each subtree proof value with the tree node it is the
+  // root of (N_a_b covers leaves a to b - 1, Leafj is leaf j).
+  const nodeNames = subtreeProofNames(treeSize, leafIndexes);
+  await writeFile(
+    baseDir + "derivedSubtreeProof.json",
+    JSON.stringify({
+      treeSize,
+      leafIndexes,
+      subtreeProof: subtreeProof.map((value, i) => ({ node: nodeNames[i], value: bytesToHex(value) })),
+    }, null, 2),
+  );
+
   const disclosureData = {
     signature: bytesToHex(signature),
+    treeSize,
+    leafIndexes,
     filteredSalts: filteredSalts.map((s) => bytesToHex(s)),
-    saltedHashes: saltedHashes.map((sh) => bytesToHex(sh)),
+    subtreeProof: subtreeProof.map((h) => bytesToHex(h)),
     labelMap: verifierLabelMap,
     mandatoryIndexes,
-    selectiveIndexes,
   };
   await writeFile(
     baseDir + "derivedDisclosureData.json",
     JSON.stringify(disclosureData, replacerMap, 2),
   );
 
-  // Initialize newProof to a shallow copy of proof.
-  const newProof = Object.assign({}, proof);
-
-
-
-
-
+  // Components: signature, treeSize, leafIndexes, filteredSalts,
+  // subtreeProof, compressedLabelMap, mandatoryIndexes, behind the header
+  // bytes 0xd9, 0x5d, 0x13.
   const derivedProofValueString = serializeDerivedProofValue({
-    signature, salts: filteredSalts, saltedHashes, labelMap: verifierLabelMap,
-    mandatoryIndexes, selectiveIndexes,
+    signature, treeSize, leafIndexes, filteredSalts, subtreeProof,
+    labelMap: verifierLabelMap, mandatoryIndexes,
   });
-  // console.log(derivedProofValueString)
   console.log(
     `Length of derivedProofValue is ${derivedProofValueString.length} characters`,
   );
-  /*  Replace proofValue in newProof with the result of calling the algorithm in Section 3.4.7
-  serializeDerivedProofValue, passing baseSignature, publicKey, signatures, labelMap, and mandatoryIndexes.
-  Set the value of the "proof" property in revealDocument to newProof.
-  Return revealDocument as the selectively revealed document. */
+  // Initialize newProof to a shallow copy of proof, replace its proofValue
+  // and set it as the proof of the reveal document.
+  const newProof = Object.assign({}, proof);
   newProof.proofValue = derivedProofValueString;
   revealDocument.proof = newProof;
-  // console.log(JSON.stringify(revealDocument, null, 2));
   await writeFile(
     baseDir + "derivedRevealDocument.json",
     JSON.stringify(revealDocument, null, 2),
